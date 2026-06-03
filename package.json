@@ -1,0 +1,127 @@
+{
+  "name": "demi",
+  "author": "MakeAwesomeHappen",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {
+    "pebble-clay": "^1.0.4",
+    "pebble-fctx": "^1.6.5"
+  },
+  "pebble": {
+    "displayName": "Demi",
+    "uuid": "f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "capabilities": [
+      "health",
+      "location",
+      "configurable"
+    ],
+    "targetPlatforms": [
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "ACCENT_COLOR",
+      "PROGRESS_TYPE",
+      "SHOW_DATE",
+      "SHOW_WEATHER",
+      "SHOW_BATTERY",
+      "SHOW_HEART",
+      "TEMP_UNIT",
+      "LANGUAGE",
+      "CLOCK_SCHEME",
+      "WEATHER_TEMP",
+      "WEATHER_COND"
+    ],
+    "resources": {
+      "media": [
+        {
+          "type": "raw",
+          "name": "RAJDHANI_BOLD_FFONT",
+          "file": "fonts/Rajdhani-Bold.ffont"
+        },
+        {
+          "type": "raw",
+          "name": "RAJDHANI_LIGHT_FFONT",
+          "file": "fonts/Rajdhani-Light.ffont"
+        },
+        {
+          "type": "font",
+          "name": "RAJDHANI_BOLD_20",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[-0-9A-Za-z °%.k]",
+          "compatibility": "2.7"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_SHOE",
+          "file": "icons/shoe.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_BATTERY",
+          "file": "icons/battery.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_FLAME",
+          "file": "icons/flame.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_RUNNER",
+          "file": "icons/runner.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_SUN",
+          "file": "icons/sun.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_CLOUD",
+          "file": "icons/cloud.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_PARTLY_CLOUDY",
+          "file": "icons/partlycloudy.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_LIGHT_RAIN",
+          "file": "icons/lightrain.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_HEAVY_RAIN",
+          "file": "icons/heavyrain.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_LIGHT_SNOW",
+          "file": "icons/lightsnow.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_HEAVY_SNOW",
+          "file": "icons/heavysnow.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_HEART",
+          "file": "icons/heart.pdc"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "pebble-fctx-compiler": "^1.2.2"
+  }
+}

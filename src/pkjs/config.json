@@ -1,0 +1,95 @@
+[
+  { "type": "heading", "defaultValue": "Demi" },
+  {
+    "type": "section",
+    "items": [
+      { "type": "heading", "defaultValue": "Uiterlijk" },
+      {
+        "type": "color",
+        "messageKey": "ACCENT_COLOR",
+        "label": "Accentkleur",
+        "defaultValue": "00b894",
+        "sunlight": false,
+        "layout": [
+          ["00b894", "e8a020", "e05555"],
+          ["5baee8", "c084fc"]
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "CLOCK_SCHEME",
+        "label": "Kleuren uren/minuten",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Wit / donkergrijs", "value": "0" },
+          { "label": "Wit / wit", "value": "1" },
+          { "label": "Wit / lichtgrijs (e-paper)", "value": "2" },
+          { "label": "Lichtgrijs / wit (e-paper)", "value": "3" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      { "type": "heading", "defaultValue": "Progressbar" },
+      {
+        "type": "select",
+        "messageKey": "PROGRESS_TYPE",
+        "label": "Toont",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Stappen", "value": "0" },
+          { "label": "Batterij", "value": "1" },
+          { "label": "Calorieën", "value": "2" },
+          { "label": "Afstand", "value": "3" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      { "type": "heading", "defaultValue": "Widgets onderaan" },
+      { "type": "toggle", "messageKey": "SHOW_DATE",    "label": "Toon datum",    "defaultValue": true },
+      { "type": "toggle", "messageKey": "SHOW_WEATHER", "label": "Toon weer",     "defaultValue": true },
+      { "type": "toggle", "messageKey": "SHOW_BATTERY", "label": "Toon batterij", "defaultValue": false },
+      { "type": "toggle", "messageKey": "SHOW_HEART",   "label": "Toon hartslag", "defaultValue": false }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      { "type": "heading", "defaultValue": "Taal" },
+      {
+        "type": "select",
+        "messageKey": "LANGUAGE",
+        "label": "Taal datum",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Nederlands", "value": "0" },
+          { "label": "English", "value": "1" },
+          { "label": "Deutsch", "value": "2" },
+          { "label": "Français", "value": "3" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      { "type": "heading", "defaultValue": "Weer" },
+      {
+        "type": "select",
+        "messageKey": "TEMP_UNIT",
+        "label": "Temperatuureenheid",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Celsius", "value": "0" },
+          { "label": "Fahrenheit", "value": "1" }
+        ]
+      }
+    ]
+  },
+  { "type": "submit", "defaultValue": "Opslaan" }
+]
