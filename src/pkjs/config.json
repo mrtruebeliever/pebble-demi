@@ -26,7 +26,8 @@
           { "label": "Wit / lichtgrijs (e-paper)", "value": "2" },
           { "label": "Lichtgrijs / wit (e-paper)", "value": "3" }
         ]
-      }
+      },
+      { "type": "toggle", "messageKey": "CLOCK_24H", "label": "24-uurs klok", "defaultValue": true }
     ]
   },
   {
@@ -88,7 +89,8 @@
           { "label": "Celsius", "value": "0" },
           { "label": "Fahrenheit", "value": "1" }
         ]
-      }
+      },
+      { "type": "toggle", "messageKey": "WEATHER_ACCENT", "label": "Weericoon in accentkleur", "defaultValue": false }
     ]
   },
   { "type": "submit", "defaultValue": "Opslaan" }

@@ -36,6 +36,8 @@
       "TEMP_UNIT",
       "LANGUAGE",
       "CLOCK_SCHEME",
+      "CLOCK_24H",
+      "WEATHER_ACCENT",
       "WEATHER_TEMP",
       "WEATHER_COND"
     ],
@@ -117,6 +119,16 @@
           "type": "raw",
           "name": "IMG_HEART",
           "file": "icons/heart.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_QUIET",
+          "file": "icons/quiet.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_BT_OFF",
+          "file": "icons/bt_off.pdc"
         }
       ]
     }

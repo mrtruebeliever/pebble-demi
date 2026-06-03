@@ -4,9 +4,14 @@ A configurable watchface for the **Pebble Time 2** (platform `emery`). Demi show
 anti-aliased vector digits, a configurable progress bar, and a row of toggleable widgets
 (date / weather / battery / heart rate) along the bottom.
 
-![Demi](demi.png)
-![Demi — English](demi_en.png)
-![Demi — all widgets](demi_all.png)
+![Demi — green, steps, 24h](demi.png)
+
+| | | |
+| --- | --- | --- |
+| ![12h AM/PM](demi_ampm.png) | ![Orange, battery](demi_battery.png) | ![Blue, distance](demi_distance.png) |
+| 12h AM/PM (afternoon) | Orange · battery | Blue · distance |
+| ![Purple, calories](demi_calories.png) | ![Red, weather in accent](demi_weather_accent.png) | ![Quiet time + BT](demi_status.png) |
+| Purple · calories | Red · weather icon in accent | Quiet-time + BT-disconnect icons |
 
 UUID: `f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8`
 
@@ -30,10 +35,31 @@ Open the watchface settings in the Pebble app to configure:
 | --- | --- |
 | **Accent color** | green / orange / red / blue / purple |
 | **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper) |
+| **24-hour clock** | on (24h) / off (12h with AM/PM label right of the hour) — default 24h |
 | **Progress bar** | Steps / Battery / Calories / Distance |
 | **Bottom widgets** | Date, Weather, Battery, Heart rate (each toggleable) |
 | **Language** (date) | Nederlands / English / Deutsch / Français |
 | **Temperature unit** | Celsius / Fahrenheit |
+| **Weather icon in accent color** | on / off (off = per-condition colors) — default off |
+
+## Status icons
+
+Two automatic status icons appear in the top corners (subtle light-gray outlines, no
+configuration):
+
+- **Quiet Time** (mouse, upper-left) when `quiet_time_is_active()`.
+- **Bluetooth disconnected** (upper-right) when `connection_service_peek_pebble_app_connection()`
+  is false.
+
+Both are 25→22px PDCs from [pebble-dev/iconography](https://github.com/pebble-dev/iconography)
+(`Quiet_time_mouse`, `Watch_disconnected`).
+
+## Timeline Quick View
+
+The face subscribes to the unobstructed-area service (`unobstructed_area_service_subscribe`)
+and recomputes every layer frame from `layer_get_unobstructed_bounds()` in an `apply_layout`
+helper, so the clock/progress/bottom row compress upward and stay visible above the ~51px
+Timeline peek. The status icons are hidden during the slide.
 
 The heart-rate widget reads `HealthMetricHeartRateBPM` via `health_service_peek_current_value`
 and shows `--` when no sensor is available (e.g. in the emulator).
@@ -96,6 +122,10 @@ Vector fonts and icons are precompiled into `resources/`:
   → `.pdc` (run via `uv run --with svg.path`). The battery icon is a custom 25×25 SVG.
   - Two recolor modes in `demi.c`: `draw_pdc_solid` (filled silhouette) for the small
     progress-bar icons, and `draw_pdc` (outline/line-art) for the bottom-row icons.
+  - `svg2pdc.py` takes an optional `-S/--scale FACTOR` that uniformly scales coordinates
+    **and** the declared image bounds — used to bring large sources down to the ~22px
+    status-icon size (e.g. `--scale 0.28` for the 80×80 quiet-time mouse, `--scale 0.44`
+    for the 50×50 watch-disconnected).
   - `svg2pdc.py` is ported to Python 3 and made resilient: it **rounds** off-grid points
     instead of failing, and **drops degenerate paths** (<2 points). The latter is critical —
     Adobe-exported SVGs can contain a lone `moveto` that yields a 0-point command, which

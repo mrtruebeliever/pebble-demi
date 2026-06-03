@@ -11,6 +11,8 @@
 #define PERSIST_SHOW_HEART     7
 #define PERSIST_LANGUAGE       8
 #define PERSIST_CLOCK_SCHEME   9
+#define PERSIST_CLOCK_24H      10
+#define PERSIST_WEATHER_ACCENT 11
 
 // Progressbar types.
 #define PROGRESS_STEPS     0
@@ -59,6 +61,8 @@
 #define DEFAULT_SHOW_HEART     false
 #define DEFAULT_LANGUAGE       LANG_NL
 #define DEFAULT_CLOCK_SCHEME   CLOCK_SCHEME_WHITE_GRAY
+#define DEFAULT_CLOCK_24H      true   // NL convention; 12h + AM/PM is opt-in
+#define DEFAULT_WEATHER_ACCENT false  // keep per-condition weather colors
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
@@ -71,6 +75,8 @@ typedef struct {
   int    temp_unit;
   int    language;
   int    clock_scheme;
+  bool   clock_24h;       // true = 24h display, false = 12h with AM/PM
+  bool   weather_accent;  // true = draw weather icon in the accent color
   int    weather_temp;       // WEATHER_TEMP_NONE until first fetch
   int    weather_condition;  // WEATHER_SUN / WEATHER_CLOUD / WEATHER_RAIN
 } DemiConfig;

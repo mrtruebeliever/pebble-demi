@@ -24,6 +24,8 @@ void config_load(void) {
   s_config.temp_unit         = DEFAULT_TEMP_UNIT;
   s_config.language          = DEFAULT_LANGUAGE;
   s_config.clock_scheme      = DEFAULT_CLOCK_SCHEME;
+  s_config.clock_24h         = DEFAULT_CLOCK_24H;
+  s_config.weather_accent    = DEFAULT_WEATHER_ACCENT;
   s_config.weather_temp      = WEATHER_TEMP_NONE;
   s_config.weather_condition = WEATHER_SUN;
 
@@ -54,6 +56,12 @@ void config_load(void) {
   if (persist_exists(PERSIST_CLOCK_SCHEME)) {
     s_config.clock_scheme = persist_read_int(PERSIST_CLOCK_SCHEME);
   }
+  if (persist_exists(PERSIST_CLOCK_24H)) {
+    s_config.clock_24h = persist_read_bool(PERSIST_CLOCK_24H);
+  }
+  if (persist_exists(PERSIST_WEATHER_ACCENT)) {
+    s_config.weather_accent = persist_read_bool(PERSIST_WEATHER_ACCENT);
+  }
   APP_LOG(APP_LOG_LEVEL_DEBUG, "config loaded: accent=0x%02x progress=%d date=%d weather=%d battery=%d unit=%d",
           s_config.accent_color.argb, s_config.progress_type, s_config.show_date,
           s_config.show_weather, s_config.show_battery, s_config.temp_unit);
@@ -70,6 +78,8 @@ void config_save(void) {
   persist_write_int(PERSIST_TEMP_UNIT, s_config.temp_unit);
   persist_write_int(PERSIST_LANGUAGE, s_config.language);
   persist_write_int(PERSIST_CLOCK_SCHEME, s_config.clock_scheme);
+  persist_write_bool(PERSIST_CLOCK_24H, s_config.clock_24h);
+  persist_write_bool(PERSIST_WEATHER_ACCENT, s_config.weather_accent);
 }
 
 // Applies any settings/weather present in an inbound AppMessage, then redraws.
@@ -111,6 +121,14 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_CLOCK_SCHEME))) {
     s_config.clock_scheme = t->value->int32;
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_CLOCK_24H))) {
+    s_config.clock_24h = (t->value->int32 != 0);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_ACCENT))) {
+    s_config.weather_accent = (t->value->int32 != 0);
     settings_changed = true;
   }
 

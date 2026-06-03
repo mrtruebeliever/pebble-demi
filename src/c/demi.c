@@ -7,6 +7,7 @@ static Window *s_window;
 static Layer  *s_clock_layer;
 static Layer  *s_progress_layer;
 static Layer  *s_bottom_layer;
+static Layer  *s_status_layer;
 
 static FFont  *s_ffont_bold;   // big hours
 static FFont  *s_ffont_light;  // big minutes
@@ -16,10 +17,15 @@ static GFont   s_font20;       // small labels / values
 static GDrawCommandImage *s_img_shoe, *s_img_battery, *s_img_flame, *s_img_runner, *s_img_heart;
 static GDrawCommandImage *s_img_sun, *s_img_partly, *s_img_cloud;
 static GDrawCommandImage *s_img_lrain, *s_img_hrain, *s_img_lsnow, *s_img_hsnow;
+static GDrawCommandImage *s_img_quiet, *s_img_bt_off;  // status-row icons
+
+// Hidden during a Timeline Quick View slide to reduce clutter.
+static bool s_peek_animating = false;
 
 // Time / date text.
 static char s_hours[4];
 static char s_minutes[4];
+static char s_ampm[4];   // "AM"/"PM" in 12h mode; empty in 24h mode
 static char s_day[8];
 static char s_mon[8];
 static int  s_mday;
@@ -139,10 +145,12 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
 
   // Anchor on the digit cap-height so the placement is predictable (digits
   // have no descenders): hours high in the top third, minutes in the lower third.
+  int hour_y = H * 21 / 100;
   fctx_begin_fill(&fctx);
   fctx_set_fill_color(&fctx, hour_color);
-  fctx_set_offset(&fctx, FPointI(W / 2, H * 21 / 100));
+  fctx_set_offset(&fctx, FPointI(W / 2, hour_y));
   fctx_set_text_em_height(&fctx, s_ffont_bold, H * 49 / 100);
+  int hour_w = FIXED_TO_INT(fctx_string_width(&fctx, s_hours, s_ffont_bold));
   fctx_draw_string(&fctx, s_hours, s_ffont_bold, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(&fctx);
 
@@ -154,6 +162,17 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
   fctx_end_fill(&fctx);
 
   fctx_deinit_context(&fctx);
+
+  // AM/PM indicator (12h mode): small label tucked right of the hour digits.
+  if (s_ampm[0]) {
+    int x = W / 2 + hour_w / 2 + 4;
+    int w = W - x - 2;
+    if (w > 18) {
+      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_draw_text(ctx, s_ampm, s_font20, GRect(x, hour_y - 11, w, 22),
+                         GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+    }
+  }
 }
 
 // Draws the progressbar: icon, track, accent fill and the value label.
@@ -300,6 +319,7 @@ static void bottom_update_proc(Layer *layer, GContext *ctx) {
     else snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
     GColor wc;
     GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
+    if (cfg->weather_accent) wc = cfg->accent_color;
     draw_right_widget(ctx, wi, wc, ws, GColorLightGray, &xr, dx, cy, ty);
   }
 
@@ -308,6 +328,22 @@ static void bottom_update_proc(Layer *layer, GContext *ctx) {
     if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
     else snprintf(hs, sizeof(hs), "--");
     draw_right_widget(ctx, s_img_heart, GColorRed, hs, GColorLightGray, &xr, dx, cy, ty);
+  }
+}
+
+// Draws the top status row: quiet-time mouse (left) and BT-disconnect (right).
+// Both are subtle light-gray outlines; hidden during a Timeline peek slide.
+static void status_update_proc(Layer *layer, GContext *ctx) {
+  if (s_peek_animating) return;
+  GRect b = layer_get_bounds(layer);
+
+  if (quiet_time_is_active() && s_img_quiet) {
+    draw_pdc(ctx, s_img_quiet, GPoint(4, 3), GColorLightGray);
+  }
+
+  if (!connection_service_peek_pebble_app_connection() && s_img_bt_off) {
+    GSize sz = gdraw_command_image_get_bounds_size(s_img_bt_off);
+    draw_pdc(ctx, s_img_bt_off, GPoint(b.size.w - 4 - sz.w, 3), GColorLightGray);
   }
 }
 
@@ -322,15 +358,25 @@ static void redraw_all(void) {
   if (s_clock_layer)    layer_mark_dirty(s_clock_layer);
   if (s_progress_layer) layer_mark_dirty(s_progress_layer);
   if (s_bottom_layer)   layer_mark_dirty(s_bottom_layer);
+  if (s_status_layer)   layer_mark_dirty(s_status_layer);
 }
 
 // Refreshes the cached time/date strings from the current local time.
 static void update_time(struct tm *tm) {
-  strftime(s_hours, sizeof(s_hours), "%I", tm);
+  bool h24 = config_get()->clock_24h;
+  strftime(s_hours, sizeof(s_hours), h24 ? "%H" : "%I", tm);
   if (s_hours[0] == '0') {            // strip leading zero from the hour
     memmove(s_hours, s_hours + 1, strlen(s_hours));
   }
   strftime(s_minutes, sizeof(s_minutes), "%M", tm);
+
+  // AM/PM indicator (12h mode only); derived from tm_hour to avoid %p locale gaps.
+  if (h24) {
+    s_ampm[0] = 0;
+  } else {
+    strncpy(s_ampm, tm->tm_hour < 12 ? "AM" : "PM", sizeof(s_ampm) - 1);
+    s_ampm[sizeof(s_ampm) - 1] = 0;
+  }
 
   // Locale-independent weekday/month abbreviations per configured language
   // (ASCII only — the small font's characterRegex excludes accented glyphs).
@@ -360,6 +406,13 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time(tick_time);
   if (s_clock_layer)  layer_mark_dirty(s_clock_layer);
   if (s_bottom_layer) layer_mark_dirty(s_bottom_layer);
+  // Quiet time is schedule-driven (no event); re-check it every minute.
+  if (s_status_layer) layer_mark_dirty(s_status_layer);
+}
+
+// Bluetooth/phone connection change: redraw the status row.
+static void conn_handler(bool connected) {
+  if (s_status_layer) layer_mark_dirty(s_status_layer);
 }
 
 // Battery change: cache state, redraw progress + bottom row.
@@ -379,13 +432,42 @@ static void health_handler(HealthEventType event, void *context) {
 
 // ---- window ---------------------------------------------------------------
 
+// Positions every layer within the given (unobstructed) bounds. Called at load
+// and on each Timeline Quick View frame so the layout compresses to stay visible
+// above the peek. The update procs read layer_get_bounds(), so digits/widgets
+// re-fit automatically.
+static void apply_layout(GRect ub) {
+  int W = ub.size.w, H = ub.size.h;
+  int bottom_h = H * 17 / 100;
+  int clock_h = H - bottom_h;
+
+  if (s_clock_layer)    layer_set_frame(s_clock_layer, GRect(0, 0, W, clock_h));
+  if (s_progress_layer) layer_set_frame(s_progress_layer, GRect(0, clock_h * 47 / 100 - 14, W, 28));
+  if (s_bottom_layer)   layer_set_frame(s_bottom_layer, GRect(0, H - bottom_h, W, bottom_h));
+  if (s_status_layer)   layer_set_frame(s_status_layer, GRect(0, 0, W, 28));
+}
+
+// Timeline Quick View: hide the status icons during the slide to reduce clutter.
+static void unobstructed_will_change(GRect final_unobstructed, void *context) {
+  s_peek_animating = true;
+  if (s_status_layer) layer_mark_dirty(s_status_layer);
+}
+
+// Reposition every frame so the face slides smoothly with the peek.
+static void unobstructed_change(AnimationProgress progress, void *context) {
+  apply_layout(layer_get_unobstructed_bounds(window_get_root_layer(s_window)));
+}
+
+// Settle into the final layout and restore the status icons.
+static void unobstructed_did_change(void *context) {
+  s_peek_animating = false;
+  apply_layout(layer_get_unobstructed_bounds(window_get_root_layer(s_window)));
+  if (s_status_layer) layer_mark_dirty(s_status_layer);
+}
+
 // Builds fonts, icons, layers and subscribes to services.
 static void window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
-  GRect b = layer_get_unobstructed_bounds(root);
-  int W = b.size.w, H = b.size.h;
-  int bottom_h = H * 17 / 100;
-  int clock_h = H - bottom_h;
 
   // Fonts.
   s_ffont_bold  = ffont_create_from_resource(RESOURCE_ID_RAJDHANI_BOLD_FFONT);
@@ -407,19 +489,28 @@ static void window_load(Window *window) {
   s_img_hrain    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_HEAVY_RAIN);
   s_img_lsnow    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_LIGHT_SNOW);
   s_img_hsnow    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_HEAVY_SNOW);
+  s_img_quiet    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_QUIET);
+  s_img_bt_off   = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_BT_OFF);
 
-  // Layers.
-  s_clock_layer = layer_create(GRect(0, 0, W, clock_h));
+  // Layers (frames set by apply_layout below). The status layer is added last so
+  // its corner icons overlay the clock.
+  s_clock_layer = layer_create(GRectZero);
   layer_set_update_proc(s_clock_layer, clock_update_proc);
   layer_add_child(root, s_clock_layer);
 
-  s_progress_layer = layer_create(GRect(0, clock_h * 47 / 100 - 14, W, 28));
+  s_progress_layer = layer_create(GRectZero);
   layer_set_update_proc(s_progress_layer, progress_update_proc);
   layer_add_child(root, s_progress_layer);
 
-  s_bottom_layer = layer_create(GRect(0, H - bottom_h, W, bottom_h));
+  s_bottom_layer = layer_create(GRectZero);
   layer_set_update_proc(s_bottom_layer, bottom_update_proc);
   layer_add_child(root, s_bottom_layer);
+
+  s_status_layer = layer_create(GRectZero);
+  layer_set_update_proc(s_status_layer, status_update_proc);
+  layer_add_child(root, s_status_layer);
+
+  apply_layout(layer_get_unobstructed_bounds(root));
 
   // Initial data.
   time_t now = time(NULL);
@@ -431,6 +522,14 @@ static void window_load(Window *window) {
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_handler);
   health_service_events_subscribe(health_handler, NULL);
+  connection_service_subscribe((ConnectionHandlers){
+    .pebble_app_connection_handler = conn_handler,
+  });
+  unobstructed_area_service_subscribe((UnobstructedAreaHandlers){
+    .will_change = unobstructed_will_change,
+    .change      = unobstructed_change,
+    .did_change  = unobstructed_did_change,
+  }, NULL);
 }
 
 // Tears down everything created in window_load.
@@ -438,10 +537,13 @@ static void window_unload(Window *window) {
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
   health_service_events_unsubscribe();
+  connection_service_unsubscribe();
+  unobstructed_area_service_unsubscribe();
 
   layer_destroy(s_clock_layer);
   layer_destroy(s_progress_layer);
   layer_destroy(s_bottom_layer);
+  layer_destroy(s_status_layer);
 
   ffont_destroy(s_ffont_bold);
   ffont_destroy(s_ffont_light);
@@ -459,6 +561,8 @@ static void window_unload(Window *window) {
   gdraw_command_image_destroy(s_img_hrain);
   gdraw_command_image_destroy(s_img_lsnow);
   gdraw_command_image_destroy(s_img_hsnow);
+  gdraw_command_image_destroy(s_img_quiet);
+  gdraw_command_image_destroy(s_img_bt_off);
 }
 
 // ---- app lifecycle --------------------------------------------------------

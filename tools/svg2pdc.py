@@ -31,6 +31,11 @@ DRAW_COMMAND_TYPE_PRECISE_PATH = 3
 
 COORDINATE_SHIFT_WARNING_THRESHOLD = 0.1
 
+# Uniform scale factor applied to every coordinate (about the viewbox origin).
+# Set from the --scale CLI option; lets large source SVGs (e.g. 80x80 icons) be
+# downsized to the ~22px status-icon size Demi expects. Default 1.0 = no change.
+SCALE = 1.0
+
 xmlns = '{http://www.w3.org/2000/svg}'
 
 
@@ -117,7 +122,8 @@ class Command():
     def __init__(self, points, translate, stroke_width=0, stroke_color=0, fill_color=0, precise=False,
                  raise_error=False):
         for i in range(len(points)):
-            points[i], valid = convert_to_pebble_coordinates(sum_points(points[i], translate), precise)
+            scaled = scale_point(sum_points(points[i], translate), SCALE)
+            points[i], valid = convert_to_pebble_coordinates(scaled, precise)
             if not valid and raise_error:
                 raise InvalidPointException("Invalid point in command")
 
@@ -512,7 +518,10 @@ def serialize_frame(frame, duration):
 
 
 def pack_header(size):
-    return pack('<BBhh', DRAW_COMMAND_VERSION, 0, int(round(size[0])), int(round(size[1])))
+    # Scale the declared image bounds to match the scaled coordinates, so
+    # gdraw_command_image_get_bounds_size() reports the on-screen icon size.
+    return pack('<BBhh', DRAW_COMMAND_VERSION, 0,
+                int(round(size[0] * SCALE)), int(round(size[1] * SCALE)))
 
 
 def serialize_sequence(frames, size, duration, play_count):
@@ -614,6 +623,8 @@ def create_pdc_from_path(path, sequence, out_path, verbose, duration, play_count
 
 
 def main(args):
+    global SCALE
+    SCALE = args.scale
     path = os.path.abspath(args.path)
     error_files = create_pdc_from_path(path, args.sequence, args.output, args.verbose, args.duration, args.play_count,
                                        args.precise)
@@ -639,6 +650,8 @@ if __name__ == '__main__':
                         help="Number of times the sequence should play - default = 1")
     parser.add_argument('-p', '--precise', action='store_true',
                         help="Use sub-pixel precision for paths")
+    parser.add_argument('-S', '--scale', type=float, default=1.0,
+                        help="Uniform scale factor applied to all coordinates - default = 1.0")
     args = parser.parse_args()
     main(args)
 
