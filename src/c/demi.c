@@ -154,14 +154,14 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
   fctx_begin_fill(&fctx);
   fctx_set_fill_color(&fctx, hour_color);
   fctx_set_offset(&fctx, FPointI(W / 2, hour_y));
-  fctx_set_text_em_height(&fctx, s_ffont_bold, H * 49 / 100);
+  fctx_set_text_em_height(&fctx, s_ffont_bold, H * 54 / 100);
   int hour_w = FIXED_TO_INT(fctx_string_width(&fctx, s_hours, s_ffont_bold));
   fctx_draw_string(&fctx, s_hours, s_ffont_bold, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(&fctx);
 
   fctx_begin_fill(&fctx);
   fctx_set_fill_color(&fctx, minute_color);
-  fctx_set_offset(&fctx, FPointI(W / 2, H * 73 / 100));
+  fctx_set_offset(&fctx, FPointI(W / 2, H * 77 / 100));
   fctx_set_text_em_height(&fctx, s_ffont_light, H * 49 / 100);
   fctx_draw_string(&fctx, s_minutes, s_ffont_light, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(&fctx);
@@ -541,7 +541,7 @@ static void apply_layout(GRect ub) {
   int clock_h = H - bottom_h;
 
   if (s_clock_layer)    layer_set_frame(s_clock_layer, GRect(0, 0, W, clock_h));
-  if (s_progress_layer) layer_set_frame(s_progress_layer, GRect(0, clock_h * 47 / 100 - 14, W, 28));
+  if (s_progress_layer) layer_set_frame(s_progress_layer, GRect(0, clock_h * 50 / 100 - 14, W, 28));
   if (s_bottom_layer)   layer_set_frame(s_bottom_layer, GRect(0, H - bottom_h, W, bottom_h));
   if (s_status_layer)   layer_set_frame(s_status_layer, GRect(0, 0, W, 28));
 }
