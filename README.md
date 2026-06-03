@@ -1,25 +1,27 @@
 # Demi
 
 A configurable watchface for the **Pebble Time 2** (platform `emery`). Demi shows large
-anti-aliased vector digits, a configurable progress bar, and a row of toggleable widgets
-(date / weather / battery / heart rate) along the bottom.
+anti-aliased vector digits, a configurable progress bar, and three configurable widget
+slots (date / weather / battery / heart rate) along the bottom.
 
 ![Demi — green, steps, 24h](demi.png)
 
 | | | |
 | --- | --- | --- |
-| ![12h AM/PM](demi_ampm.png) | ![Orange, battery](demi_battery.png) | ![Blue, distance](demi_distance.png) |
-| 12h AM/PM (afternoon) | Orange · battery | Blue · distance |
-| ![Purple, calories](demi_calories.png) | ![Red, weather in accent](demi_weather_accent.png) | ![Quiet time + BT](demi_status.png) |
-| Purple · calories | Red · weather icon in accent | Quiet-time + BT-disconnect icons |
+| ![12h AM/PM](demi_ampm.png) | ![Cyan, battery](demi_battery.png) | ![Blue, distance](demi_distance.png) |
+| 12h AM/PM · orange | Cyan · battery bar + glyph | Blue · distance (Run icon) |
+| ![Purple, calories](demi_calories.png) | ![Yellow, accent hours](demi_accent_clock.png) | ![Magenta, three widgets](demi_widgets.png) |
+| Purple · calories | Yellow · accent-color hours | Magenta · three widget slots (date / battery / weather) |
 
 UUID: `f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8`
 
 ## Design
 
-- **Hours** on top in Rajdhani Bold ~70, **minutes** below in Rajdhani Light ~70.
+- **Hours** on top in Rajdhani Bold (large, ~54% of the clock area), **minutes** below in
+  Rajdhani Light (~49%).
 - A **progress bar** between them (icon + track + value in the accent color).
-- A **bottom row** of complications: date, weather, battery, heart rate.
+- A **bottom row** of three configurable slots — left / middle / right — each showing one of:
+  date, weather, battery, heart rate, or nothing.
 - Layout is computed dynamically from `layer_get_unobstructed_bounds()` — **no hardcoded
   144×168** (that's basalt). Proportions are derived from the real PT2 screen so the face
   stays correct under the Timeline quick-view peek.
@@ -33,14 +35,19 @@ Open the watchface settings in the Pebble app to configure:
 
 | Setting | Options |
 | --- | --- |
-| **Accent color** | green / orange / red / blue / purple |
-| **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper) |
+| **Accent color** | 12-swatch palette: green, mint, cyan, blue, indigo, purple, magenta, pink, red, orange, yellow, white |
+| **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper), **accent–white, white–accent, accent–darkgrey, accent–lightgrey** (accent variants track the chosen accent color) |
 | **24-hour clock** | on (24h) / off (12h with AM/PM label right of the hour) — default 24h |
 | **Progress bar** | Steps / Battery / Calories / Distance |
-| **Bottom widgets** | Date, Weather, Battery, Heart rate (each toggleable) |
+| **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate — default date / — / weather |
+| **Battery percentage** | on / off — show the % beside the battery glyph, or glyph only — default on |
 | **Language** (date) | Nederlands / English / Deutsch / Français |
 | **Temperature unit** | Celsius / Fahrenheit |
 | **Weather icon in accent color** | on / off (off = per-condition colors) — default off |
+
+The **battery** widget is a graphical glyph filled proportionally to the charge level
+(accent fill, red below 20%, lightning bolt while charging), optionally followed by the
+percentage. The middle slot is skipped automatically if it would overlap a neighbour.
 
 ## Status icons
 
