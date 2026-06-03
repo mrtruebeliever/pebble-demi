@@ -162,3 +162,20 @@ tools/                # ttf2svgfont.py, svg2pdc.py, pebble_image_routines.py
 - `pebble-clay` — configuration UI
 - `pebble-fctx` — anti-aliased vector text
 - `pebble-fctx-compiler` (dev) — builds `.ffont` files
+
+## Credits & licenses
+
+Demi's own source is released under the **MIT License** (see `LICENSE`). Bundled
+third-party assets keep their original licenses:
+
+- **Rajdhani** font (`resources/fonts/Rajdhani-*.ttf` and the compiled `.ffont`) —
+  © 2014 Indian Type Foundry, designed by Satya Rajpurohit & Jyotish Sonowal.
+  Licensed under the **SIL Open Font License 1.1** — see
+  [`resources/fonts/OFL.txt`](resources/fonts/OFL.txt).
+- **Icons** (`resources/icons/*`) — derived from
+  [pebble-dev/iconography](https://github.com/pebble-dev/iconography), licensed
+  **Apache-2.0**. The distance icon is `Pebble_25x25_Run.svg`; the battery icon is a
+  custom 25×25 SVG.
+- **`tools/svg2pdc.py`** and **`tools/pebble_image_routines.py`** — © 2015 Pebble
+  Technology, from the Pebble SDK examples (ported to Python 3).
+- **Weather** data from [Open-Meteo](https://open-meteo.com/) (no API key required).

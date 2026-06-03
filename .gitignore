@@ -15,3 +15,6 @@ __pycache__/
 
 # Misc
 .DS_Store
+
+# Local Claude Code project data (settings, plans)
+.claude/
