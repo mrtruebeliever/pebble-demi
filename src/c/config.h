@@ -37,7 +37,11 @@
 #define CLOCK_SCHEME_WHITE_WHITE  1  // white hours, white minutes
 #define CLOCK_SCHEME_WHITE_LIGHT  2  // white hours, light-gray minutes (e-paper)
 #define CLOCK_SCHEME_LIGHT_WHITE  3  // light-gray hours, white minutes (e-paper)
-#define CLOCK_SCHEME_COUNT 4
+#define CLOCK_SCHEME_ACCENT_WHITE 4  // accent hours, white minutes
+#define CLOCK_SCHEME_WHITE_ACCENT 5  // white hours, accent minutes
+#define CLOCK_SCHEME_ACCENT_GRAY  6  // accent hours, dark-gray minutes
+#define CLOCK_SCHEME_ACCENT_LIGHT 7  // accent hours, light-gray minutes
+#define CLOCK_SCHEME_COUNT 8
 
 // Languages for the weekday/month abbreviations.
 #define LANG_NL  0

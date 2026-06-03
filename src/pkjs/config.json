@@ -11,8 +11,10 @@
         "defaultValue": "00b894",
         "sunlight": false,
         "layout": [
-          ["00b894", "e8a020", "e05555"],
-          ["5baee8", "c084fc"]
+          ["00b894", "00ff7f", "00ffff"],
+          ["5baee8", "0055ff", "c084fc"],
+          ["ff55ff", "ff5aaa", "e05555"],
+          ["e8a020", "ffdd00", "ffffff"]
         ]
       },
       {
@@ -24,7 +26,11 @@
           { "label": "Wit / donkergrijs", "value": "0" },
           { "label": "Wit / wit", "value": "1" },
           { "label": "Wit / lichtgrijs (e-paper)", "value": "2" },
-          { "label": "Lichtgrijs / wit (e-paper)", "value": "3" }
+          { "label": "Lichtgrijs / wit (e-paper)", "value": "3" },
+          { "label": "Accent / wit", "value": "4" },
+          { "label": "Wit / accent", "value": "5" },
+          { "label": "Accent / donkergrijs", "value": "6" },
+          { "label": "Accent / lichtgrijs", "value": "7" }
         ]
       },
       { "type": "toggle", "messageKey": "CLOCK_24H", "label": "24-uurs klok", "defaultValue": true }

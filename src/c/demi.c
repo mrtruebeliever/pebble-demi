@@ -124,12 +124,17 @@ static void compute_progress(int *pct, char *buf, size_t len,
 // Draws the big hours (white, bold, top) and minutes (gray, light, bottom).
 // Maps the configured clock scheme to its hour and minute fill colors.
 static void clock_scheme_colors(int scheme, GColor *hours, GColor *minutes) {
+  GColor accent = config_get()->accent_color;
   switch (scheme) {
-    case CLOCK_SCHEME_WHITE_WHITE: *hours = GColorWhite;     *minutes = GColorWhite;     break;
-    case CLOCK_SCHEME_WHITE_LIGHT: *hours = GColorWhite;     *minutes = GColorLightGray; break;
-    case CLOCK_SCHEME_LIGHT_WHITE: *hours = GColorLightGray; *minutes = GColorWhite;     break;
+    case CLOCK_SCHEME_WHITE_WHITE:  *hours = GColorWhite;     *minutes = GColorWhite;     break;
+    case CLOCK_SCHEME_WHITE_LIGHT:  *hours = GColorWhite;     *minutes = GColorLightGray; break;
+    case CLOCK_SCHEME_LIGHT_WHITE:  *hours = GColorLightGray; *minutes = GColorWhite;     break;
+    case CLOCK_SCHEME_ACCENT_WHITE: *hours = accent;          *minutes = GColorWhite;     break;
+    case CLOCK_SCHEME_WHITE_ACCENT: *hours = GColorWhite;     *minutes = accent;          break;
+    case CLOCK_SCHEME_ACCENT_GRAY:  *hours = accent;          *minutes = GColorDarkGray;  break;
+    case CLOCK_SCHEME_ACCENT_LIGHT: *hours = accent;          *minutes = GColorLightGray; break;
     case CLOCK_SCHEME_WHITE_GRAY:
-    default:                       *hours = GColorWhite;     *minutes = GColorDarkGray;  break;
+    default:                        *hours = GColorWhite;     *minutes = GColorDarkGray;  break;
   }
 }
 
