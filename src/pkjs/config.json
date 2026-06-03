@@ -52,10 +52,46 @@
     "type": "section",
     "items": [
       { "type": "heading", "defaultValue": "Widgets onderaan" },
-      { "type": "toggle", "messageKey": "SHOW_DATE",    "label": "Toon datum",    "defaultValue": true },
-      { "type": "toggle", "messageKey": "SHOW_WEATHER", "label": "Toon weer",     "defaultValue": true },
-      { "type": "toggle", "messageKey": "SHOW_BATTERY", "label": "Toon batterij", "defaultValue": false },
-      { "type": "toggle", "messageKey": "SHOW_HEART",   "label": "Toon hartslag", "defaultValue": false }
+      { "type": "text", "defaultValue": "Kies per positie welke widget verschijnt (max. 3)." },
+      {
+        "type": "select",
+        "messageKey": "WIDGET_LEFT",
+        "label": "Links",
+        "defaultValue": "1",
+        "options": [
+          { "label": "Geen", "value": "0" },
+          { "label": "Datum", "value": "1" },
+          { "label": "Weer", "value": "2" },
+          { "label": "Batterij", "value": "3" },
+          { "label": "Hartslag", "value": "4" }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "WIDGET_MID",
+        "label": "Midden",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Geen", "value": "0" },
+          { "label": "Datum", "value": "1" },
+          { "label": "Weer", "value": "2" },
+          { "label": "Batterij", "value": "3" },
+          { "label": "Hartslag", "value": "4" }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "WIDGET_RIGHT",
+        "label": "Rechts",
+        "defaultValue": "2",
+        "options": [
+          { "label": "Geen", "value": "0" },
+          { "label": "Datum", "value": "1" },
+          { "label": "Weer", "value": "2" },
+          { "label": "Batterij", "value": "3" },
+          { "label": "Hartslag", "value": "4" }
+        ]
+      }
     ]
   },
   {

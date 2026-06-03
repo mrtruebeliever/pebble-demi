@@ -29,10 +29,9 @@
     "messageKeys": [
       "ACCENT_COLOR",
       "PROGRESS_TYPE",
-      "SHOW_DATE",
-      "SHOW_WEATHER",
-      "SHOW_BATTERY",
-      "SHOW_HEART",
+      "WIDGET_LEFT",
+      "WIDGET_MID",
+      "WIDGET_RIGHT",
       "TEMP_UNIT",
       "LANGUAGE",
       "CLOCK_SCHEME",

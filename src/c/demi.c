@@ -227,107 +227,180 @@ static GDrawCommandImage *weather_icon(int cond, GColor *color) {
   }
 }
 
-// Draws a right-aligned "[icon] value" widget ending at *xr and advancing *xr
-// left. Skips drawing (and leaves *xr unchanged) if it would cross `floor`,
-// so the right cluster never overlaps the date widget on the left.
-static void draw_right_widget(GContext *ctx, GDrawCommandImage *icon, GColor icon_color,
-                              const char *value, GColor text_color, int *xr, int floor,
-                              int cy, int ty) {
-  GSize vw = graphics_text_layout_get_content_size(value, s_font20, GRect(0, 0, 60, 22),
-                                                   GTextOverflowModeFill, GTextAlignmentRight);
-  int iw = 0;
-  GSize sz = GSizeZero;
-  if (icon) {
-    sz = gdraw_command_image_get_bounds_size(icon);
-    iw = sz.w + 1;
+// Battery glyph geometry (a small body rect plus a positive-terminal nub).
+#define BATT_BODY_W 22
+#define BATT_H      12
+#define BATT_NUB_W  2
+
+// Returns the pixel width a widget needs, or 0 for WIDGET_NONE / no content.
+// Mirrors the layout each draw_widget_* path produces so slots can be placed.
+static int widget_width(int type) {
+  DemiConfig *cfg = config_get();
+  switch (type) {
+    case WIDGET_DATE: {
+      char da[3] = { s_day[0], s_day[1], 0 };
+      GSize daw = graphics_text_layout_get_content_size(da, s_font20, GRect(0, 0, 40, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      return daw.w + 5 + 20;  // weekday + gap + calendar box
+    }
+    case WIDGET_WEATHER: {
+      char ws[8];
+      if (cfg->weather_temp == WEATHER_TEMP_NONE) snprintf(ws, sizeof(ws), "--");
+      else snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
+      GColor wc;
+      GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
+      GSize sz = gdraw_command_image_get_bounds_size(wi);
+      GSize vw = graphics_text_layout_get_content_size(ws, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      return sz.w + 1 + vw.w;
+    }
+    case WIDGET_HEART: {
+      char hs[8];
+      if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
+      else snprintf(hs, sizeof(hs), "--");
+      GSize sz = gdraw_command_image_get_bounds_size(s_img_heart);
+      GSize vw = graphics_text_layout_get_content_size(hs, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      return sz.w + 1 + vw.w;
+    }
+    case WIDGET_BATTERY:
+      return BATT_BODY_W + BATT_NUB_W;
+    default:
+      return 0;
   }
-  int needed = vw.w + iw;
-  if (*xr - needed < floor) {
-    return;  // not enough room; skip rather than overlap the date
-  }
-  *xr -= vw.w;
-  graphics_context_set_text_color(ctx, text_color);
-  graphics_draw_text(ctx, value, s_font20, GRect(*xr, ty, vw.w, 22),
-                     GTextOverflowModeFill, GTextAlignmentRight, NULL);
-  if (icon) {
-    *xr -= sz.w + 1;
-    draw_pdc(ctx, icon, GPoint(*xr, cy - sz.h / 2), icon_color);
-  }
-  *xr -= 4;
 }
 
-// Draws the bottom widget row: date (left), heart/weather/battery (right).
+// Draws a single widget left-aligned starting at x, vertically centered on cy
+// (ty is the text-box top for a ~22px line). Unknown/NONE types draw nothing.
+static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
+  DemiConfig *cfg = config_get();
+  switch (type) {
+    case WIDGET_DATE: {
+      // Weekday abbreviation (2 letters) + a calendar box with the day number.
+      GFont num = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+      char da[3] = { s_day[0], s_day[1], 0 };
+      GSize daw = graphics_text_layout_get_content_size(da, s_font20, GRect(0, 0, 40, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_draw_text(ctx, da, s_font20, GRect(x, ty, daw.w, 22),
+                         GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+      x += daw.w + 5;
+
+      int cw = 20, ch = 18;
+      int box_top = cy - ch / 2;
+      graphics_context_set_stroke_color(ctx, cfg->accent_color);
+      graphics_context_set_fill_color(ctx, cfg->accent_color);
+      graphics_draw_line(ctx, GPoint(x + 5, box_top - 3), GPoint(x + 5, box_top));
+      graphics_draw_line(ctx, GPoint(x + cw - 5, box_top - 3), GPoint(x + cw - 5, box_top));
+      graphics_draw_round_rect(ctx, GRect(x, box_top, cw, ch), 3);
+      graphics_fill_rect(ctx, GRect(x + 1, box_top + 1, cw - 2, 3), 0, GCornerNone);
+      char dn[4];
+      snprintf(dn, sizeof(dn), "%d", s_mday);
+      graphics_context_set_text_color(ctx, GColorWhite);
+      // GOTHIC has top padding; pull the number up so it sits centered in the body.
+      graphics_draw_text(ctx, dn, num, GRect(x, box_top - 2, cw, ch),
+                         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+      break;
+    }
+    case WIDGET_WEATHER: {
+      char ws[8];
+      if (cfg->weather_temp == WEATHER_TEMP_NONE) snprintf(ws, sizeof(ws), "--");
+      else snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
+      GColor wc;
+      GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
+      if (cfg->weather_accent) wc = cfg->accent_color;
+      GSize sz = gdraw_command_image_get_bounds_size(wi);
+      draw_pdc(ctx, wi, GPoint(x, cy - sz.h / 2), wc);
+      x += sz.w + 1;
+      GSize vw = graphics_text_layout_get_content_size(ws, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_draw_text(ctx, ws, s_font20, GRect(x, ty, vw.w, 22),
+                         GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+      break;
+    }
+    case WIDGET_HEART: {
+      char hs[8];
+      if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
+      else snprintf(hs, sizeof(hs), "--");
+      GSize sz = gdraw_command_image_get_bounds_size(s_img_heart);
+      draw_pdc(ctx, s_img_heart, GPoint(x, cy - sz.h / 2), GColorRed);
+      x += sz.w + 1;
+      GSize vw = graphics_text_layout_get_content_size(hs, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_draw_text(ctx, hs, s_font20, GRect(x, ty, vw.w, 22),
+                         GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+      break;
+    }
+    case WIDGET_BATTERY: {
+      // Battery body outline + nub, filled proportionally to the charge level.
+      int top = cy - BATT_H / 2;
+      GColor fill = (s_batt_pct < 20) ? GColorRed : cfg->accent_color;
+      graphics_context_set_stroke_color(ctx, GColorLightGray);
+      graphics_draw_round_rect(ctx, GRect(x, top, BATT_BODY_W, BATT_H), 2);
+      graphics_context_set_fill_color(ctx, GColorLightGray);
+      graphics_fill_rect(ctx, GRect(x + BATT_BODY_W, cy - 3, BATT_NUB_W, 6), 0, GCornerNone);
+
+      int inner_w = BATT_BODY_W - 4;
+      int fw = inner_w * s_batt_pct / 100;
+      if (fw < 1 && s_batt_pct > 0) fw = 1;  // keep a sliver visible at low %
+      if (fw > inner_w) fw = inner_w;
+      if (fw > 0) {
+        graphics_context_set_fill_color(ctx, fill);
+        graphics_fill_rect(ctx, GRect(x + 2, top + 2, fw, BATT_H - 4), 0, GCornerNone);
+      }
+
+      if (s_charging) {
+        // A small lightning bolt across the body.
+        int mx = x + BATT_BODY_W / 2;
+        graphics_context_set_stroke_color(ctx, GColorWhite);
+        graphics_draw_line(ctx, GPoint(mx + 2, top + 2), GPoint(mx - 2, cy));
+        graphics_draw_line(ctx, GPoint(mx - 2, cy), GPoint(mx + 2, cy));
+        graphics_draw_line(ctx, GPoint(mx + 2, cy), GPoint(mx - 2, top + BATT_H - 2));
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+// Draws the bottom widget row: three configurable slots (left / middle / right).
+// Left is left-aligned, right is right-aligned, middle is centered and skipped
+// if it would overlap either neighbour.
 static void bottom_update_proc(Layer *layer, GContext *ctx) {
   DemiConfig *cfg = config_get();
   GRect b = layer_get_bounds(layer);
   int W = b.size.w;
   int cy = b.size.h / 2;
   int ty = cy - 11;  // text box top for a ~22px line
+  const int gap = 6;
 
   // Top divider.
   graphics_context_set_stroke_color(ctx, GColorDarkGray);
   graphics_draw_line(ctx, GPoint(0, 0), GPoint(W, 0));
 
-  // Left: date widget -> "MA" [bigger calendar with day number]. (Month dropped.)
-  int dx = 4;  // right edge of the date widget, used as collision floor
-  if (cfg->show_date) {
-    GFont num = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-    int x = 4;
+  // Left slot.
+  int lw = widget_width(cfg->widget_left);
+  if (lw > 0) draw_widget_at(ctx, cfg->widget_left, 4, cy, ty);
+  int left_end = (lw > 0) ? 4 + lw : 4;
 
-    // Weekday abbreviation (2 letters).
-    char da[3] = { s_day[0], s_day[1], 0 };
-    GSize daw = graphics_text_layout_get_content_size(da, s_font20, GRect(0, 0, 40, 22),
-                                                     GTextOverflowModeFill, GTextAlignmentLeft);
-    graphics_context_set_text_color(ctx, GColorLightGray);
-    graphics_draw_text(ctx, da, s_font20, GRect(x, ty, daw.w, 22),
-                       GTextOverflowModeFill, GTextAlignmentLeft, NULL);
-    x += daw.w + 5;
-
-    // Calendar icon (bigger): two rings, header strip, outlined body, day number.
-    int cw = 20, ch = 18;
-    int box_top = cy - ch / 2;
-    graphics_context_set_stroke_color(ctx, cfg->accent_color);
-    graphics_context_set_fill_color(ctx, cfg->accent_color);
-    graphics_draw_line(ctx, GPoint(x + 5, box_top - 3), GPoint(x + 5, box_top));
-    graphics_draw_line(ctx, GPoint(x + cw - 5, box_top - 3), GPoint(x + cw - 5, box_top));
-    graphics_draw_round_rect(ctx, GRect(x, box_top, cw, ch), 3);
-    graphics_fill_rect(ctx, GRect(x + 1, box_top + 1, cw - 2, 3), 0, GCornerNone);
-    char dn[4];
-    snprintf(dn, sizeof(dn), "%d", s_mday);
-    graphics_context_set_text_color(ctx, GColorWhite);
-    // GOTHIC has top padding; pull the number up so it sits centered in the body.
-    graphics_draw_text(ctx, dn, num, GRect(x, box_top - 2, cw, ch),
-                       GTextOverflowModeFill, GTextAlignmentCenter, NULL);
-    x += cw + 4;
-    dx = x;
+  // Right slot.
+  int rw = widget_width(cfg->widget_right);
+  int right_start = W - 4;
+  if (rw > 0) {
+    right_start = W - 4 - rw;
+    draw_widget_at(ctx, cfg->widget_right, right_start, cy, ty);
   }
 
-  // Right side builds from the right edge inward: battery, weather, heart.
-  // Each widget is skipped (not overlapped) if it would cross the date edge.
-  int xr = W - 4;
-
-  if (cfg->show_battery) {
-    char bs[8];
-    snprintf(bs, sizeof(bs), "%d%%", s_batt_pct);
-    draw_right_widget(ctx, NULL, GColorClear, bs,
-                      s_batt_pct < 20 ? GColorRed : GColorLightGray, &xr, dx, cy, ty);
-  }
-
-  if (cfg->show_weather) {
-    char ws[8];
-    if (cfg->weather_temp == WEATHER_TEMP_NONE) snprintf(ws, sizeof(ws), "--");
-    else snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
-    GColor wc;
-    GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
-    if (cfg->weather_accent) wc = cfg->accent_color;
-    draw_right_widget(ctx, wi, wc, ws, GColorLightGray, &xr, dx, cy, ty);
-  }
-
-  if (cfg->show_heart) {
-    char hs[8];
-    if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
-    else snprintf(hs, sizeof(hs), "--");
-    draw_right_widget(ctx, s_img_heart, GColorRed, hs, GColorLightGray, &xr, dx, cy, ty);
+  // Middle slot: centered, but only if it clears both neighbours.
+  int mw = widget_width(cfg->widget_mid);
+  if (mw > 0) {
+    int mx = (W - mw) / 2;
+    if (mx >= left_end + gap && mx + mw <= right_start - gap) {
+      draw_widget_at(ctx, cfg->widget_mid, mx, cy, ty);
+    }
   }
 }
 

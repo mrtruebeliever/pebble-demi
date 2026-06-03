@@ -72,6 +72,9 @@ Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) { return; }
   var dict = clay.getSettings(e.response);
   dict[keys.PROGRESS_TYPE] = parseInt(dict[keys.PROGRESS_TYPE], 10) || 0;
+  dict[keys.WIDGET_LEFT] = parseInt(dict[keys.WIDGET_LEFT], 10) || 0;
+  dict[keys.WIDGET_MID] = parseInt(dict[keys.WIDGET_MID], 10) || 0;
+  dict[keys.WIDGET_RIGHT] = parseInt(dict[keys.WIDGET_RIGHT], 10) || 0;
   dict[keys.TEMP_UNIT] = parseInt(dict[keys.TEMP_UNIT], 10) || 0;
   dict[keys.LANGUAGE] = parseInt(dict[keys.LANGUAGE], 10) || 0;
   dict[keys.CLOCK_SCHEME] = parseInt(dict[keys.CLOCK_SCHEME], 10) || 0;

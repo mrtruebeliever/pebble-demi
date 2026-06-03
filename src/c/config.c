@@ -17,10 +17,9 @@ void config_set_change_callback(void (*cb)(void)) {
 void config_load(void) {
   s_config.accent_color      = GColorFromHEX(DEFAULT_ACCENT_COLOR);
   s_config.progress_type     = DEFAULT_PROGRESS_TYPE;
-  s_config.show_date         = DEFAULT_SHOW_DATE;
-  s_config.show_weather      = DEFAULT_SHOW_WEATHER;
-  s_config.show_battery      = DEFAULT_SHOW_BATTERY;
-  s_config.show_heart        = DEFAULT_SHOW_HEART;
+  s_config.widget_left       = DEFAULT_WIDGET_LEFT;
+  s_config.widget_mid        = DEFAULT_WIDGET_MID;
+  s_config.widget_right      = DEFAULT_WIDGET_RIGHT;
   s_config.temp_unit         = DEFAULT_TEMP_UNIT;
   s_config.language          = DEFAULT_LANGUAGE;
   s_config.clock_scheme      = DEFAULT_CLOCK_SCHEME;
@@ -35,17 +34,14 @@ void config_load(void) {
   if (persist_exists(PERSIST_PROGRESS_TYPE)) {
     s_config.progress_type = persist_read_int(PERSIST_PROGRESS_TYPE);
   }
-  if (persist_exists(PERSIST_SHOW_DATE)) {
-    s_config.show_date = persist_read_bool(PERSIST_SHOW_DATE);
+  if (persist_exists(PERSIST_WIDGET_LEFT)) {
+    s_config.widget_left = persist_read_int(PERSIST_WIDGET_LEFT);
   }
-  if (persist_exists(PERSIST_SHOW_WEATHER)) {
-    s_config.show_weather = persist_read_bool(PERSIST_SHOW_WEATHER);
+  if (persist_exists(PERSIST_WIDGET_MID)) {
+    s_config.widget_mid = persist_read_int(PERSIST_WIDGET_MID);
   }
-  if (persist_exists(PERSIST_SHOW_BATTERY)) {
-    s_config.show_battery = persist_read_bool(PERSIST_SHOW_BATTERY);
-  }
-  if (persist_exists(PERSIST_SHOW_HEART)) {
-    s_config.show_heart = persist_read_bool(PERSIST_SHOW_HEART);
+  if (persist_exists(PERSIST_WIDGET_RIGHT)) {
+    s_config.widget_right = persist_read_int(PERSIST_WIDGET_RIGHT);
   }
   if (persist_exists(PERSIST_TEMP_UNIT)) {
     s_config.temp_unit = persist_read_int(PERSIST_TEMP_UNIT);
@@ -62,19 +58,18 @@ void config_load(void) {
   if (persist_exists(PERSIST_WEATHER_ACCENT)) {
     s_config.weather_accent = persist_read_bool(PERSIST_WEATHER_ACCENT);
   }
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "config loaded: accent=0x%02x progress=%d date=%d weather=%d battery=%d unit=%d",
-          s_config.accent_color.argb, s_config.progress_type, s_config.show_date,
-          s_config.show_weather, s_config.show_battery, s_config.temp_unit);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "config loaded: accent=0x%02x progress=%d slots=%d/%d/%d unit=%d",
+          s_config.accent_color.argb, s_config.progress_type, s_config.widget_left,
+          s_config.widget_mid, s_config.widget_right, s_config.temp_unit);
 }
 
 // Persists the user-configurable settings (weather is transient, not stored).
 void config_save(void) {
   persist_write_int(PERSIST_ACCENT_COLOR, s_config.accent_color.argb);
   persist_write_int(PERSIST_PROGRESS_TYPE, s_config.progress_type);
-  persist_write_bool(PERSIST_SHOW_DATE, s_config.show_date);
-  persist_write_bool(PERSIST_SHOW_WEATHER, s_config.show_weather);
-  persist_write_bool(PERSIST_SHOW_BATTERY, s_config.show_battery);
-  persist_write_bool(PERSIST_SHOW_HEART, s_config.show_heart);
+  persist_write_int(PERSIST_WIDGET_LEFT, s_config.widget_left);
+  persist_write_int(PERSIST_WIDGET_MID, s_config.widget_mid);
+  persist_write_int(PERSIST_WIDGET_RIGHT, s_config.widget_right);
   persist_write_int(PERSIST_TEMP_UNIT, s_config.temp_unit);
   persist_write_int(PERSIST_LANGUAGE, s_config.language);
   persist_write_int(PERSIST_CLOCK_SCHEME, s_config.clock_scheme);
@@ -95,20 +90,16 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
     s_config.progress_type = t->value->int32;
     settings_changed = true;
   }
-  if ((t = dict_find(iter, MESSAGE_KEY_SHOW_DATE))) {
-    s_config.show_date = (t->value->int32 != 0);
+  if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_LEFT))) {
+    s_config.widget_left = t->value->int32;
     settings_changed = true;
   }
-  if ((t = dict_find(iter, MESSAGE_KEY_SHOW_WEATHER))) {
-    s_config.show_weather = (t->value->int32 != 0);
+  if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_MID))) {
+    s_config.widget_mid = t->value->int32;
     settings_changed = true;
   }
-  if ((t = dict_find(iter, MESSAGE_KEY_SHOW_BATTERY))) {
-    s_config.show_battery = (t->value->int32 != 0);
-    settings_changed = true;
-  }
-  if ((t = dict_find(iter, MESSAGE_KEY_SHOW_HEART))) {
-    s_config.show_heart = (t->value->int32 != 0);
+  if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_RIGHT))) {
+    s_config.widget_right = t->value->int32;
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_TEMP_UNIT))) {

@@ -4,15 +4,21 @@
 // Persist storage keys (independent of the AppMessage message keys).
 #define PERSIST_ACCENT_COLOR   1
 #define PERSIST_PROGRESS_TYPE  2
-#define PERSIST_SHOW_DATE      3
-#define PERSIST_SHOW_WEATHER   4
-#define PERSIST_SHOW_BATTERY   5
 #define PERSIST_TEMP_UNIT      6
-#define PERSIST_SHOW_HEART     7
 #define PERSIST_LANGUAGE       8
 #define PERSIST_CLOCK_SCHEME   9
 #define PERSIST_CLOCK_24H      10
 #define PERSIST_WEATHER_ACCENT 11
+#define PERSIST_WIDGET_LEFT    12
+#define PERSIST_WIDGET_MID     13
+#define PERSIST_WIDGET_RIGHT   14
+
+// Bottom-bar widget types (one per slot: left / middle / right).
+#define WIDGET_NONE     0
+#define WIDGET_DATE     1
+#define WIDGET_WEATHER  2
+#define WIDGET_BATTERY  3
+#define WIDGET_HEART    4
 
 // Progressbar types.
 #define PROGRESS_STEPS     0
@@ -51,27 +57,26 @@
 // Sentinel meaning "no weather data received yet".
 #define WEATHER_TEMP_NONE  INT32_MIN
 
-// Default values.
+// Default values. The slot defaults reproduce the previous look:
+// date left, weather right, middle empty (battery is opt-in via a slot).
 #define DEFAULT_ACCENT_COLOR   0x00FF7F  // GColorMediumSpringGreen
 #define DEFAULT_PROGRESS_TYPE  PROGRESS_STEPS
-#define DEFAULT_SHOW_DATE      true
-#define DEFAULT_SHOW_WEATHER   true
-#define DEFAULT_SHOW_BATTERY   false
 #define DEFAULT_TEMP_UNIT      TEMP_CELSIUS
-#define DEFAULT_SHOW_HEART     false
 #define DEFAULT_LANGUAGE       LANG_NL
 #define DEFAULT_CLOCK_SCHEME   CLOCK_SCHEME_WHITE_GRAY
 #define DEFAULT_CLOCK_24H      true   // NL convention; 12h + AM/PM is opt-in
 #define DEFAULT_WEATHER_ACCENT false  // keep per-condition weather colors
+#define DEFAULT_WIDGET_LEFT    WIDGET_DATE
+#define DEFAULT_WIDGET_MID     WIDGET_NONE
+#define DEFAULT_WIDGET_RIGHT   WIDGET_WEATHER
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
   GColor accent_color;
   int    progress_type;
-  bool   show_date;
-  bool   show_weather;
-  bool   show_battery;
-  bool   show_heart;
+  int    widget_left;   // WIDGET_* type shown in the left bottom slot
+  int    widget_mid;    // WIDGET_* type shown in the middle bottom slot
+  int    widget_right;  // WIDGET_* type shown in the right bottom slot
   int    temp_unit;
   int    language;
   int    clock_scheme;
