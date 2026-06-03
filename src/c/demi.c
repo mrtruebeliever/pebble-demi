@@ -661,6 +661,12 @@ static void window_unload(Window *window) {
 
 // ---- app lifecycle --------------------------------------------------------
 
+// Logs when an inbound settings/weather message is dropped (e.g. inbox busy or
+// too small) so a "settings didn't stick" symptom is visible rather than silent.
+static void inbox_dropped(AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage inbox dropped: %d", (int)reason);
+}
+
 // Loads config, builds the window and opens the AppMessage inbox.
 static void init(void) {
   config_load();
@@ -675,6 +681,7 @@ static void init(void) {
   window_stack_push(s_window, true);
 
   app_message_register_inbox_received(config_inbox_received);
+  app_message_register_inbox_dropped(inbox_dropped);
   app_message_open(256, 64);
 }
 
