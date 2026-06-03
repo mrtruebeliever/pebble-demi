@@ -54,6 +54,8 @@ percentage. The middle slot is skipped automatically if it would overlap a neigh
 Two automatic status icons appear in the top corners (subtle light-gray outlines, no
 configuration):
 
+![Quiet-time + Bluetooth-disconnect icons](demi_status.png)
+
 - **Quiet Time** (mouse, upper-left) when `quiet_time_is_active()`.
 - **Bluetooth disconnected** (upper-right) when `connection_service_peek_pebble_app_connection()`
   is false.
