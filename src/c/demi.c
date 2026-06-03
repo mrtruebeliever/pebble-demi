@@ -27,7 +27,6 @@ static char s_hours[4];
 static char s_minutes[4];
 static char s_ampm[4];   // "AM"/"PM" in 12h mode; empty in 24h mode
 static char s_day[8];
-static char s_mon[8];
 static int  s_mday;
 
 // Health + battery snapshot.
@@ -254,6 +253,7 @@ static int widget_width(int type) {
       else snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
       GColor wc;
       GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
+      if (!wi) return 0;
       GSize sz = gdraw_command_image_get_bounds_size(wi);
       GSize vw = graphics_text_layout_get_content_size(ws, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
@@ -263,6 +263,7 @@ static int widget_width(int type) {
       char hs[8];
       if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
       else snprintf(hs, sizeof(hs), "--");
+      if (!s_img_heart) return 0;
       GSize sz = gdraw_command_image_get_bounds_size(s_img_heart);
       GSize vw = graphics_text_layout_get_content_size(hs, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
@@ -323,6 +324,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       GColor wc;
       GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
       if (cfg->weather_accent) wc = cfg->accent_color;
+      if (!wi) break;
       GSize sz = gdraw_command_image_get_bounds_size(wi);
       draw_pdc(ctx, wi, GPoint(x, cy - sz.h / 2), wc);
       x += sz.w + 1;
@@ -337,6 +339,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       char hs[8];
       if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
       else snprintf(hs, sizeof(hs), "--");
+      if (!s_img_heart) break;
       GSize sz = gdraw_command_image_get_bounds_size(s_img_heart);
       draw_pdc(ctx, s_img_heart, GPoint(x, cy - sz.h / 2), GColorRed);
       x += sz.w + 1;
@@ -485,18 +488,10 @@ static void update_time(struct tm *tm) {
     { "SO", "MO", "DI", "MI", "DO", "FR", "SA" },  // DE
     { "DI", "LU", "MA", "ME", "JE", "VE", "SA" },  // FR
   };
-  static const char *const MON[LANG_COUNT][12] = {
-    { "JAN","FEB","MRT","APR","MEI","JUN","JUL","AUG","SEP","OKT","NOV","DEC" },  // NL
-    { "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC" },  // EN
-    { "JAN","FEB","MRZ","APR","MAI","JUN","JUL","AUG","SEP","OKT","NOV","DEZ" },  // DE
-    { "JAN","FEV","MAR","AVR","MAI","JUN","JUL","AOU","SEP","OCT","NOV","DEC" },  // FR
-  };
   int lang = config_get()->language;
   if (lang < 0 || lang >= LANG_COUNT) lang = LANG_NL;
   strncpy(s_day, WDAY[lang][tm->tm_wday % 7], sizeof(s_day) - 1);
   s_day[sizeof(s_day) - 1] = 0;
-  strncpy(s_mon, MON[lang][tm->tm_mon % 12], sizeof(s_mon) - 1);
-  s_mon[sizeof(s_mon) - 1] = 0;
   s_mday = tm->tm_mday;
 }
 

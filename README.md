@@ -94,7 +94,7 @@ Non-login shells need the SDK on `PATH` first:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
-cd /home/jscheyving/Development/pebble/Demi
+cd "$(git rev-parse --show-toplevel)"
 pebble build
 pebble install --emulator emery
 pebble screenshot --emulator emery demi.png
@@ -129,8 +129,8 @@ Vector fonts and icons are precompiled into `resources/`:
 - **`.pdc`** — icons from [pebble-dev/iconography](https://github.com/pebble-dev/iconography)
   (official PebbleOS SVGs, Apache 2.0, 25×25, white-fill + black-stroke) → `tools/svg2pdc.py`
   → `.pdc` (run via `uv run --with svg.path`). The battery icon is a custom 25×25 SVG.
-  - Two recolor modes in `demi.c`: `draw_pdc_solid` (filled silhouette) for the small
-    progress-bar icons, and `draw_pdc` (outline/line-art) for the bottom-row icons.
+  - All icons are recolored by `draw_pdc` in `demi.c` (outline/line-art: transparent fill,
+    1px accent-colored stroke), used for both the progress-bar and bottom-row icons.
   - `svg2pdc.py` takes an optional `-S/--scale FACTOR` that uniformly scales coordinates
     **and** the declared image bounds — used to bring large sources down to the ~22px
     status-icon size (e.g. `--scale 0.28` for the 80×80 quiet-time mouse, `--scale 0.44`
