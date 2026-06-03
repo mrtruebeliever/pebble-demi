@@ -12,6 +12,7 @@
 #define PERSIST_WIDGET_LEFT    12
 #define PERSIST_WIDGET_MID     13
 #define PERSIST_WIDGET_RIGHT   14
+#define PERSIST_BATTERY_PCT    15
 
 // Bottom-bar widget types (one per slot: left / middle / right).
 #define WIDGET_NONE     0
@@ -69,6 +70,7 @@
 #define DEFAULT_WIDGET_LEFT    WIDGET_DATE
 #define DEFAULT_WIDGET_MID     WIDGET_NONE
 #define DEFAULT_WIDGET_RIGHT   WIDGET_WEATHER
+#define DEFAULT_BATTERY_PCT    true   // show the % beside the battery glyph
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
@@ -77,6 +79,7 @@ typedef struct {
   int    widget_left;   // WIDGET_* type shown in the left bottom slot
   int    widget_mid;    // WIDGET_* type shown in the middle bottom slot
   int    widget_right;  // WIDGET_* type shown in the right bottom slot
+  bool   battery_pct;   // show the % label beside the battery widget glyph
   int    temp_unit;
   int    language;
   int    clock_scheme;

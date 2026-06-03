@@ -32,6 +32,7 @@
       "WIDGET_LEFT",
       "WIDGET_MID",
       "WIDGET_RIGHT",
+      "BATTERY_PCT",
       "TEMP_UNIT",
       "LANGUAGE",
       "CLOCK_SCHEME",

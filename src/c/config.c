@@ -20,6 +20,7 @@ void config_load(void) {
   s_config.widget_left       = DEFAULT_WIDGET_LEFT;
   s_config.widget_mid        = DEFAULT_WIDGET_MID;
   s_config.widget_right      = DEFAULT_WIDGET_RIGHT;
+  s_config.battery_pct       = DEFAULT_BATTERY_PCT;
   s_config.temp_unit         = DEFAULT_TEMP_UNIT;
   s_config.language          = DEFAULT_LANGUAGE;
   s_config.clock_scheme      = DEFAULT_CLOCK_SCHEME;
@@ -42,6 +43,9 @@ void config_load(void) {
   }
   if (persist_exists(PERSIST_WIDGET_RIGHT)) {
     s_config.widget_right = persist_read_int(PERSIST_WIDGET_RIGHT);
+  }
+  if (persist_exists(PERSIST_BATTERY_PCT)) {
+    s_config.battery_pct = persist_read_bool(PERSIST_BATTERY_PCT);
   }
   if (persist_exists(PERSIST_TEMP_UNIT)) {
     s_config.temp_unit = persist_read_int(PERSIST_TEMP_UNIT);
@@ -70,6 +74,7 @@ void config_save(void) {
   persist_write_int(PERSIST_WIDGET_LEFT, s_config.widget_left);
   persist_write_int(PERSIST_WIDGET_MID, s_config.widget_mid);
   persist_write_int(PERSIST_WIDGET_RIGHT, s_config.widget_right);
+  persist_write_bool(PERSIST_BATTERY_PCT, s_config.battery_pct);
   persist_write_int(PERSIST_TEMP_UNIT, s_config.temp_unit);
   persist_write_int(PERSIST_LANGUAGE, s_config.language);
   persist_write_int(PERSIST_CLOCK_SCHEME, s_config.clock_scheme);
@@ -100,6 +105,10 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_RIGHT))) {
     s_config.widget_right = t->value->int32;
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_BATTERY_PCT))) {
+    s_config.battery_pct = (t->value->int32 != 0);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_TEMP_UNIT))) {

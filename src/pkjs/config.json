@@ -91,7 +91,8 @@
           { "label": "Batterij", "value": "3" },
           { "label": "Hartslag", "value": "4" }
         ]
-      }
+      },
+      { "type": "toggle", "messageKey": "BATTERY_PCT", "label": "Toon batterijpercentage", "defaultValue": true }
     ]
   },
   {

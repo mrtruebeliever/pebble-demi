@@ -263,8 +263,17 @@ static int widget_width(int type) {
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
       return sz.w + 1 + vw.w;
     }
-    case WIDGET_BATTERY:
-      return BATT_BODY_W + BATT_NUB_W;
+    case WIDGET_BATTERY: {
+      int w = BATT_BODY_W + BATT_NUB_W;
+      if (cfg->battery_pct) {
+        char bs[8];
+        snprintf(bs, sizeof(bs), "%d%%", s_batt_pct);
+        GSize vw = graphics_text_layout_get_content_size(bs, s_font20, GRect(0, 0, 60, 22),
+                                                         GTextOverflowModeFill, GTextAlignmentLeft);
+        w += 3 + vw.w;
+      }
+      return w;
+    }
     default:
       return 0;
   }
@@ -358,6 +367,18 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
         graphics_draw_line(ctx, GPoint(mx + 2, top + 2), GPoint(mx - 2, cy));
         graphics_draw_line(ctx, GPoint(mx - 2, cy), GPoint(mx + 2, cy));
         graphics_draw_line(ctx, GPoint(mx + 2, cy), GPoint(mx - 2, top + BATT_H - 2));
+      }
+
+      // Optional percentage label beside the glyph.
+      if (cfg->battery_pct) {
+        char bs[8];
+        snprintf(bs, sizeof(bs), "%d%%", s_batt_pct);
+        int tx = x + BATT_BODY_W + BATT_NUB_W + 3;
+        GSize vw = graphics_text_layout_get_content_size(bs, s_font20, GRect(0, 0, 60, 22),
+                                                         GTextOverflowModeFill, GTextAlignmentLeft);
+        graphics_context_set_text_color(ctx, (s_batt_pct < 20) ? GColorRed : GColorLightGray);
+        graphics_draw_text(ctx, bs, s_font20, GRect(tx, ty, vw.w, 22),
+                           GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       }
       break;
     }
