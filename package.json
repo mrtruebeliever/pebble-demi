@@ -44,6 +44,12 @@
     "resources": {
       "media": [
         {
+          "type": "png",
+          "name": "IMAGE_MENU_ICON",
+          "file": "images/menu_icon.png",
+          "menuIcon": true
+        },
+        {
           "type": "raw",
           "name": "RAJDHANI_BOLD_FFONT",
           "file": "fonts/Rajdhani-Bold.ffont"
