@@ -87,12 +87,14 @@ static void format_k(int value, char *buf, size_t len) {
   }
 }
 
-// Computes the active progress metric: percentage, label, icon and fill color.
-static void compute_progress(int *pct, char *buf, size_t len,
+// Computes a progress metric: percentage, label, icon and fill color. The type
+// is passed in rather than read from the config, so the dual layout can render
+// two different metrics.
+static void compute_progress(int type, int *pct, char *buf, size_t len,
                              GDrawCommandImage **icon, GColor *fill) {
   DemiConfig *cfg = config_get();
   *fill = cfg->accent_color;
-  switch (cfg->progress_type) {
+  switch (type) {
     case PROGRESS_BATTERY:
       *pct = s_batt_pct;
       snprintf(buf, len, "%d%%", s_batt_pct);
@@ -137,9 +139,10 @@ static void clock_scheme_colors(int scheme, GColor *hours, GColor *minutes) {
   }
 }
 
-// Horizontal layout: pixels reserved down the middle for the vertical bar.
-// Both the clock and the progressbar derive their geometry from this.
-static int hbar_reserve(void) { return config_get()->progress_info ? 48 : 20; }
+// Vertical progressbar geometry (horizontal layout): a 6px track down the
+// middle of the clock area, with breathing room kept clear either side of it.
+#define VBAR_HALF_W  3
+#define VBAR_GAP     8
 
 // Sets the em height, shrinking it until the string fits within max_w. The
 // stacked layout can size digits off the layer height alone; side-by-side they
@@ -187,27 +190,33 @@ static void clock_draw_stacked(FContext *fctx, int W, int H, GColor hour_color,
 // beside the vertical progressbar.
 static void clock_draw_side_by_side(FContext *fctx, int W, int H, GColor hour_color,
                                     GColor minute_color, GRect *ampm, GTextAlignment *ampm_align) {
-  int col_w = (W - hbar_reserve()) / 2;
-  int max_w = col_w - 8;
+  // Each half is the space between the bar and the screen edge, and the digits
+  // centre in it. The icon and value sit above and below the bar, clear of the
+  // digits, so they need no horizontal room and never shrink them.
+  int bar_left = W / 2 - VBAR_HALF_W;
+  int bar_right = W / 2 + VBAR_HALF_W;
+  int max_w = bar_left - 2 * VBAR_GAP;
   int cy = H / 2;
   int em = H * 40 / 100;
 
+  // Both fonts are sized off a two-digit reference rather than the live string:
+  // fitting "11" and "00" individually would resize the digits as time passed.
   fctx_begin_fill(fctx);
   fctx_set_fill_color(fctx, hour_color);
-  fctx_set_offset(fctx, FPointI(col_w / 2, cy));
-  int hour_em = fit_em(fctx, s_ffont_bold, s_hours, max_w, em);
+  fctx_set_offset(fctx, FPointI(bar_left / 2, cy));
+  int hour_em = fit_em(fctx, s_ffont_bold, "00", max_w, em);
   fctx_draw_string(fctx, s_hours, s_ffont_bold, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(fctx);
 
   fctx_begin_fill(fctx);
   fctx_set_fill_color(fctx, minute_color);
-  fctx_set_offset(fctx, FPointI(W - col_w / 2, cy));
-  fit_em(fctx, s_ffont_light, s_minutes, max_w, em);
+  fctx_set_offset(fctx, FPointI((bar_right + W) / 2, cy));
+  fit_em(fctx, s_ffont_light, "00", max_w, em);
   fctx_draw_string(fctx, s_minutes, s_ffont_light, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(fctx);
 
   // Centered under the hour digits, where the stacked layout has no room.
-  *ampm = GRect(0, cy + hour_em / 2 + 4, col_w, 22);
+  *ampm = GRect(0, cy + hour_em / 2 + 4, bar_left, 22);
   *ampm_align = GTextAlignmentCenter;
 }
 
@@ -223,7 +232,7 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
 
   FContext fctx;
   fctx_init_context(&fctx, ctx);
-  if (config_get()->layout_mode == LAYOUT_HORIZONTAL) {
+  if (config_get()->layout_mode != LAYOUT_VERTICAL) {
     clock_draw_side_by_side(&fctx, W, H, hour_color, minute_color, &ampm, &ampm_align);
   } else {
     clock_draw_stacked(&fctx, W, H, hour_color, minute_color, &ampm, &ampm_align);
@@ -237,18 +246,20 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
   }
 }
 
-// Stacked layout: horizontal bar, icon left of the track and value right of it.
+// Horizontal bar within the given rect: icon left of the track, value right of
+// it. Honours b.origin so the dual layout can place it as a strip; the stacked
+// layout passes the layer's own bounds and lands at the same place as before.
 static void draw_bar_horizontal(GContext *ctx, GRect b, int pct, const char *val,
                                 GDrawCommandImage *icon, GColor fill) {
   DemiConfig *cfg = config_get();
-  int cy = b.size.h / 2;
+  int cy = b.origin.y + b.size.h / 2;
 
-  // Equal reserve on both sides keeps the track midpoint at W/2. Hiding the
-  // icon and value hands part of their reserve back to the track, keeping a
-  // margin so the bar stays well inset from the bezel.
+  // Equal reserve on both sides keeps the track midpoint at the rect's centre.
+  // Hiding the icon and value hands part of their reserve back to the track,
+  // keeping a margin so the bar stays well inset from the bezel.
   int side = cfg->progress_info ? 48 : 20;
-  int track_x = side;
-  int track_right = b.size.w - side;
+  int track_x = b.origin.x + side;
+  int track_right = b.origin.x + b.size.w - side;
   int track_w = track_right - track_x;
   if (track_w < 0) track_w = 0;
 
@@ -268,7 +279,7 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, int pct, const char *val
   // Swapped, the icon takes the right edge and the value the left.
   if (icon) {
     GSize sz = gdraw_command_image_get_bounds_size(icon);
-    int ix = cfg->progress_swap ? b.size.w - 4 - sz.w : 4;
+    int ix = cfg->progress_swap ? b.origin.x + b.size.w - 4 - sz.w : b.origin.x + 4;
     draw_pdc(ctx, icon, GPoint(ix, cy - sz.h / 2), cfg->accent_color);
   }
 
@@ -276,7 +287,8 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, int pct, const char *val
   // from its own edge.
   graphics_context_set_text_color(ctx, cfg->accent_color);
   graphics_draw_text(ctx, val, s_font20,
-                     GRect(cfg->progress_swap ? 4 : track_right, cy - 11, side - 4, 22),
+                     GRect(cfg->progress_swap ? b.origin.x + 4 : track_right,
+                           cy - 11, side - 4, 22),
                      GTextOverflowModeFill,
                      cfg->progress_swap ? GTextAlignmentLeft : GTextAlignmentRight, NULL);
 }
@@ -296,14 +308,14 @@ static void draw_bar_vertical(GContext *ctx, GRect b, int pct, const char *val,
   if (track_h < 0) track_h = 0;
 
   graphics_context_set_fill_color(ctx, GColorDarkGray);
-  graphics_fill_rect(ctx, GRect(cx - 3, side, 6, track_h), 3, GCornersAll);
+  graphics_fill_rect(ctx, GRect(cx - VBAR_HALF_W, side, VBAR_HALF_W * 2, track_h), 3, GCornersAll);
 
   // Fills away from the icon, mirroring the horizontal bar: top-down normally,
   // bottom-up when swapped drops the icon below the track.
   int fill_h = track_h * pct / 100;
   int fill_y = cfg->progress_swap ? side + track_h - fill_h : side;
   graphics_context_set_fill_color(ctx, fill);
-  graphics_fill_rect(ctx, GRect(cx - 3, fill_y, 6, fill_h), 3, GCornersAll);
+  graphics_fill_rect(ctx, GRect(cx - VBAR_HALF_W, fill_y, VBAR_HALF_W * 2, fill_h), 3, GCornersAll);
 
   if (!cfg->progress_info) return;
 
@@ -320,20 +332,46 @@ static void draw_bar_vertical(GContext *ctx, GRect b, int pct, const char *val,
                      GTextOverflowModeFill, GTextAlignmentCenter, NULL);
 }
 
-// Draws the progressbar: icon, track, accent fill and the value label.
-static void progress_update_proc(Layer *layer, GContext *ctx) {
-  GRect b = layer_get_bounds(layer);
-
+// Draws one bar for the given metric within rect r.
+static void draw_metric_bar(GContext *ctx, GRect r, int type, bool vertical) {
   int pct;
   char val[8];
   GDrawCommandImage *icon = NULL;
   GColor fill;
-  compute_progress(&pct, val, sizeof(val), &icon, &fill);
-
-  if (config_get()->layout_mode == LAYOUT_HORIZONTAL) {
-    draw_bar_vertical(ctx, b, pct, val, icon, fill);
+  compute_progress(type, &pct, val, sizeof(val), &icon, &fill);
+  if (vertical) {
+    draw_bar_vertical(ctx, r, pct, val, icon, fill);
   } else {
-    draw_bar_horizontal(ctx, b, pct, val, icon, fill);
+    draw_bar_horizontal(ctx, r, pct, val, icon, fill);
+  }
+}
+
+// Draws the progressbar(s): icon, track, accent fill and the value label.
+static void progress_update_proc(Layer *layer, GContext *ctx) {
+  DemiConfig *cfg = config_get();
+  GRect b = layer_get_bounds(layer);
+
+  switch (cfg->layout_mode) {
+    case LAYOUT_HORIZONTAL:
+      draw_metric_bar(ctx, b, cfg->progress_type, true);
+      break;
+
+    case LAYOUT_DUAL: {
+      // Two strips framing the digits: the top one clears the status icons in
+      // the corners, the bottom one stays off the widget row's divider.
+      int strip_h = 28;
+      int top_cy = b.size.h * 25 / 100;
+      int bot_cy = b.size.h * 75 / 100;
+      draw_metric_bar(ctx, GRect(0, top_cy - strip_h / 2, b.size.w, strip_h),
+                      cfg->progress_type, false);
+      draw_metric_bar(ctx, GRect(0, bot_cy - strip_h / 2, b.size.w, strip_h),
+                      cfg->progress_type_2, false);
+      break;
+    }
+
+    default:
+      draw_metric_bar(ctx, b, cfg->progress_type, false);
+      break;
   }
 }
 
@@ -670,9 +708,9 @@ static void apply_layout(GRect ub) {
   // so the side-by-side layout can simply claim the whole clock area: its value
   // label would clip against a narrow middle strip (layers clip to bounds).
   if (s_progress_layer) {
-    bool horizontal = (config_get()->layout_mode == LAYOUT_HORIZONTAL);
-    layer_set_frame(s_progress_layer, horizontal ? GRect(0, 0, W, clock_h)
-                                                 : GRect(0, clock_h * 50 / 100 - 14, W, 28));
+    bool overlay = (config_get()->layout_mode != LAYOUT_VERTICAL);
+    layer_set_frame(s_progress_layer, overlay ? GRect(0, 0, W, clock_h)
+                                              : GRect(0, clock_h * 50 / 100 - 14, W, 28));
   }
 
   if (s_bottom_layer) layer_set_frame(s_bottom_layer, GRect(0, H - bottom_h, W, bottom_h));
