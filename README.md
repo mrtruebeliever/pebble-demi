@@ -26,7 +26,7 @@ can be hidden for a barer face, or swapped to the opposite side.
 | ![Horizontal layout](demi_horizontal.png) | ![Horizontal, bar only](demi_horizontal_minimal.png) |
 | Horizontal · icon above, value below | Horizontal · icon and value hidden |
 | ![Vertical, bar only](demi_minimal.png) | ![Vertical, swapped](demi_swap.png) |
-| Vertical · icon and value hidden | Vertical · icon and value swapped |
+| Vertical · icon and value hidden | Vertical · swapped, so the bar fills right-to-left |
 
 ## Design
 
@@ -34,8 +34,9 @@ can be hidden for a barer face, or swapped to the opposite side.
   area) in the vertical layout, or side by side in the horizontal one, where each is scaled
   to fit its own column.
 - A **progress bar** between them (icon + track + value in the accent color), horizontal or
-  vertical to match the layout. The vertical bar fills top-down, mirroring the horizontal
-  bar's left-to-right fill.
+  vertical to match the layout. The fill always grows away from the icon, so swapping the
+  icon and value also reverses it: left-to-right becomes right-to-left, top-down becomes
+  bottom-up.
 - A **bottom row** of three configurable slots — left / middle / right — each showing one of:
   date, weather, battery, heart rate, or nothing.
 - The layout is derived from the real PT2 screen size (no hardcoded dimensions), so it
@@ -53,7 +54,7 @@ Open the watchface settings in the Pebble app to configure:
 | **Layout** | Vertical (hours above minutes) / Horizontal (hours beside minutes) — default vertical |
 | **Progress bar** | Steps / Battery / Calories / Distance |
 | **Show icon and value** | on / off — off hides both and widens the bar — default on |
-| **Swap icon and value** | on / off — trades their places (vertical: value left, icon right; horizontal: value above, icon below) — default off |
+| **Swap icon and value** | on / off — trades their places and reverses the bar's fill direction with them (vertical: value left, icon right, fills right-to-left; horizontal: value above, icon below, fills bottom-up) — default off |
 | **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate — default date / — / weather |
 | **Battery percentage** | on / off — show the % beside the battery glyph, or glyph only — default on |
 | **Language** (date) | Nederlands / English / Deutsch / Français |

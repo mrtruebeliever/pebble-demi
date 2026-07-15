@@ -244,9 +244,9 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, int pct, const char *val
   int cy = b.size.h / 2;
 
   // Equal reserve on both sides keeps the track midpoint at W/2. Hiding the
-  // icon and value hands most of their reserve back to the track, keeping a
-  // margin so the bar stays inset from the bezel.
-  int side = cfg->progress_info ? 48 : 12;
+  // icon and value hands part of their reserve back to the track, keeping a
+  // margin so the bar stays well inset from the bezel.
+  int side = cfg->progress_info ? 48 : 20;
   int track_x = side;
   int track_right = b.size.w - side;
   int track_w = track_right - track_x;
@@ -255,8 +255,12 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, int pct, const char *val
   graphics_context_set_fill_color(ctx, GColorDarkGray);
   graphics_fill_rect(ctx, GRect(track_x, cy - 3, track_w, 6), 3, GCornersAll);
 
+  // The fill grows away from the icon, so swapping the icon over also flips
+  // the direction: left-to-right normally, right-to-left when swapped.
+  int fill_w = track_w * pct / 100;
+  int fill_x = cfg->progress_swap ? track_right - fill_w : track_x;
   graphics_context_set_fill_color(ctx, fill);
-  graphics_fill_rect(ctx, GRect(track_x, cy - 3, track_w * pct / 100, 6), 3, GCornersAll);
+  graphics_fill_rect(ctx, GRect(fill_x, cy - 3, fill_w, 6), 3, GCornersAll);
 
   if (!cfg->progress_info) return;
 
@@ -285,18 +289,21 @@ static void draw_bar_vertical(GContext *ctx, GRect b, int pct, const char *val,
   int cx = b.size.w / 2;
 
   // Room above for the icon and below for the value, symmetric so the track
-  // stays centered on the digits' midline. Hiding both keeps a small margin
-  // rather than running the bar to the very edge.
-  int side = cfg->progress_info ? 34 : 12;
+  // stays centered on the digits' midline. Hiding both keeps a margin rather
+  // than running the bar to the very edge.
+  int side = cfg->progress_info ? 34 : 20;
   int track_h = b.size.h - 2 * side;
   if (track_h < 0) track_h = 0;
 
   graphics_context_set_fill_color(ctx, GColorDarkGray);
   graphics_fill_rect(ctx, GRect(cx - 3, side, 6, track_h), 3, GCornersAll);
 
-  // Fills top-down, mirroring the left-to-right fill of the horizontal bar.
+  // Fills away from the icon, mirroring the horizontal bar: top-down normally,
+  // bottom-up when swapped drops the icon below the track.
+  int fill_h = track_h * pct / 100;
+  int fill_y = cfg->progress_swap ? side + track_h - fill_h : side;
   graphics_context_set_fill_color(ctx, fill);
-  graphics_fill_rect(ctx, GRect(cx - 3, side, 6, track_h * pct / 100), 3, GCornersAll);
+  graphics_fill_rect(ctx, GRect(cx - 3, fill_y, 6, fill_h), 3, GCornersAll);
 
   if (!cfg->progress_info) return;
 
