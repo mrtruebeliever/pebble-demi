@@ -83,8 +83,8 @@ function toInt(dict, key) {
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) { return; }
   var dict = clay.getSettings(e.response);
-  [keys.LAYOUT_MODE, keys.PROGRESS_TYPE, keys.WIDGET_LEFT, keys.WIDGET_MID,
-   keys.WIDGET_RIGHT, keys.TEMP_UNIT, keys.LANGUAGE, keys.CLOCK_SCHEME
+  [keys.LAYOUT_MODE, keys.PROGRESS_TYPE, keys.PROGRESS_TYPE_2, keys.WIDGET_LEFT,
+   keys.WIDGET_MID, keys.WIDGET_RIGHT, keys.TEMP_UNIT, keys.LANGUAGE, keys.CLOCK_SCHEME
   ].forEach(function(key) { toInt(dict, key); });
   localStorage.setItem('TEMP_UNIT', String(dict[keys.TEMP_UNIT] || 0));
   Pebble.sendAppMessage(dict,

@@ -19,12 +19,15 @@
 #define PERSIST_WEATHER_COND   19
 #define PERSIST_WEATHER_TIME   20
 #define PERSIST_PROGRESS_SWAP  21
+#define PERSIST_PROGRESS_TYPE_2 22
 
-// Layout modes: hours above minutes with a horizontal bar between them, or
-// hours beside minutes split by a vertical bar.
+// Layout modes: hours above minutes with a horizontal bar between them, hours
+// beside minutes split by a vertical bar, or hours beside minutes framed by two
+// horizontal bars (each showing its own metric).
 #define LAYOUT_VERTICAL    0
 #define LAYOUT_HORIZONTAL  1
-#define LAYOUT_COUNT       2
+#define LAYOUT_DUAL        2
+#define LAYOUT_COUNT       3
 
 // Bottom-bar widget types (one per slot: left / middle / right).
 #define WIDGET_NONE     0
@@ -86,6 +89,8 @@
 // date left, weather right, middle empty (battery is opt-in via a slot).
 #define DEFAULT_ACCENT_COLOR   0x00FF7F  // GColorMediumSpringGreen
 #define DEFAULT_PROGRESS_TYPE  PROGRESS_STEPS
+// Second bar (dual layout only): a different metric to the first by default.
+#define DEFAULT_PROGRESS_TYPE_2 PROGRESS_BATTERY
 #define DEFAULT_TEMP_UNIT      TEMP_CELSIUS
 #define DEFAULT_LANGUAGE       LANG_NL
 #define DEFAULT_CLOCK_SCHEME   CLOCK_SCHEME_WHITE_GRAY
@@ -102,9 +107,10 @@
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
   GColor accent_color;
-  int    layout_mode;   // LAYOUT_VERTICAL / LAYOUT_HORIZONTAL
+  int    layout_mode;    // LAYOUT_VERTICAL / LAYOUT_HORIZONTAL / LAYOUT_DUAL
   int    progress_type;
-  bool   progress_info; // show the progressbar icon and value label
+  int    progress_type_2; // metric for the lower bar in the dual layout
+  bool   progress_info;  // show the progressbar icon and value label
   bool   progress_swap; // trade the icon and value places around the bar
   int    widget_left;   // WIDGET_* type shown in the left bottom slot
   int    widget_mid;    // WIDGET_* type shown in the middle bottom slot

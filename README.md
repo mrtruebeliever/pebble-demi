@@ -17,26 +17,29 @@ UUID: `f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8`
 
 ## Layouts
 
-The clock reads either **vertically** (hours above minutes, split by a horizontal bar) or
-**horizontally** (hours beside minutes, split by a vertical bar). The bar's icon and value
-can be hidden for a barer face, or swapped to the opposite side.
+Three ways to read the clock: **vertical** (hours above minutes, split by a horizontal bar),
+**horizontal** (hours beside minutes, split by a vertical bar), or **horizontal with two
+bars** — hours beside minutes, framed by a bar above and below, each showing its own metric.
+The bar's icon and value can be hidden for a barer face, or swapped to the opposite side.
 
 | | |
 | --- | --- |
-| ![Horizontal layout](demi_horizontal.png) | ![Horizontal, bar only](demi_horizontal_minimal.png) |
-| Horizontal · icon above, value below | Horizontal · icon and value hidden |
-| ![Vertical, bar only](demi_minimal.png) | ![Vertical, swapped](demi_swap.png) |
-| Vertical · icon and value hidden | Vertical · swapped, so the bar fills right-to-left |
+| ![Two bars](demi_dual.png) | ![Horizontal layout](demi_horizontal.png) |
+| Two bars · steps above, battery below | Horizontal · icon above, value below |
+| ![Horizontal, bar only](demi_horizontal_minimal.png) | ![Vertical, bar only](demi_minimal.png) |
+| Horizontal · icon and value hidden | Vertical · icon and value hidden |
+| ![Vertical, swapped](demi_swap.png) | |
+| Vertical · swapped, so the bar fills right-to-left | |
 
 ## Design
 
 - **Hours** and **minutes** in Rajdhani Bold / Light — stacked (~54% / ~49% of the clock
   area) in the vertical layout, or side by side in the horizontal one, where each is scaled
   to fit its own column.
-- A **progress bar** between them (icon + track + value in the accent color), horizontal or
-  vertical to match the layout. The fill always grows away from the icon, so swapping the
-  icon and value also reverses it: left-to-right becomes right-to-left, top-down becomes
-  bottom-up.
+- A **progress bar** (icon + track + value in the accent color) between them, or as a pair
+  framing the time in the two-bar layout, where each bar tracks its own metric. The fill
+  always grows away from the icon, so swapping the icon and value also reverses it:
+  left-to-right becomes right-to-left, top-down becomes bottom-up.
 - A **bottom row** of three configurable slots — left / middle / right — each showing one of:
   date, weather, battery, heart rate, or nothing.
 - The layout is derived from the real PT2 screen size (no hardcoded dimensions), so it
@@ -51,8 +54,9 @@ Open the watchface settings in the Pebble app to configure:
 | **Accent color** | 12-swatch palette: green, mint, cyan, blue, indigo, purple, magenta, pink, red, orange, yellow, white |
 | **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper), **accent–white, white–accent, accent–darkgrey, accent–lightgrey** (accent variants track the chosen accent color) |
 | **24-hour clock** | on (24h) / off (12h with AM/PM label beside the hour, or below it in the horizontal layout) — default 24h |
-| **Layout** | Vertical (hours above minutes) / Horizontal (hours beside minutes) — default vertical |
+| **Layout** | Vertical (hours above minutes) / Horizontal, vertical bar / Horizontal, two bars — default vertical |
 | **Progress bar** | Steps / Battery / Calories / Distance |
+| **Second bar** | Steps / Battery / Calories / Distance — the lower bar in the two-bar layout, ignored elsewhere — default battery |
 | **Show icon and value** | on / off — off hides both and widens the bar — default on |
 | **Swap icon and value** | on / off — trades their places and reverses the bar's fill direction with them (vertical: value left, icon right, fills right-to-left; horizontal: value above, icon below, fills bottom-up) — default off |
 | **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate — default date / — / weather |

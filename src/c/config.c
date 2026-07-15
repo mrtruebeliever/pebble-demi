@@ -49,6 +49,7 @@ void config_load(void) {
   s_config.accent_color      = GColorFromHEX(DEFAULT_ACCENT_COLOR);
   s_config.layout_mode       = DEFAULT_LAYOUT_MODE;
   s_config.progress_type     = DEFAULT_PROGRESS_TYPE;
+  s_config.progress_type_2   = DEFAULT_PROGRESS_TYPE_2;
   s_config.progress_info     = DEFAULT_PROGRESS_INFO;
   s_config.progress_swap     = DEFAULT_PROGRESS_SWAP;
   s_config.widget_left       = DEFAULT_WIDGET_LEFT;
@@ -83,6 +84,9 @@ void config_load(void) {
   }
   if (persist_exists(PERSIST_PROGRESS_TYPE)) {
     set_enum(&s_config.progress_type, persist_read_int(PERSIST_PROGRESS_TYPE), PROGRESS_COUNT);
+  }
+  if (persist_exists(PERSIST_PROGRESS_TYPE_2)) {
+    set_enum(&s_config.progress_type_2, persist_read_int(PERSIST_PROGRESS_TYPE_2), PROGRESS_COUNT);
   }
   if (persist_exists(PERSIST_PROGRESS_INFO)) {
     s_config.progress_info = persist_read_bool(PERSIST_PROGRESS_INFO);
@@ -128,6 +132,7 @@ void config_save(void) {
   persist_write_int(PERSIST_ACCENT_COLOR, s_config.accent_color.argb);
   persist_write_int(PERSIST_LAYOUT_MODE, s_config.layout_mode);
   persist_write_int(PERSIST_PROGRESS_TYPE, s_config.progress_type);
+  persist_write_int(PERSIST_PROGRESS_TYPE_2, s_config.progress_type_2);
   persist_write_bool(PERSIST_PROGRESS_INFO, s_config.progress_info);
   persist_write_bool(PERSIST_PROGRESS_SWAP, s_config.progress_swap);
   persist_write_int(PERSIST_WIDGET_LEFT, s_config.widget_left);
@@ -165,6 +170,10 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_TYPE))) {
     set_enum(&s_config.progress_type, tuple_int(t), PROGRESS_COUNT);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_TYPE_2))) {
+    set_enum(&s_config.progress_type_2, tuple_int(t), PROGRESS_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_INFO))) {
