@@ -24,6 +24,7 @@
 // hours beside minutes split by a vertical bar.
 #define LAYOUT_VERTICAL    0
 #define LAYOUT_HORIZONTAL  1
+#define LAYOUT_COUNT       2
 
 // Bottom-bar widget types (one per slot: left / middle / right).
 #define WIDGET_NONE     0
@@ -31,16 +32,19 @@
 #define WIDGET_WEATHER  2
 #define WIDGET_BATTERY  3
 #define WIDGET_HEART    4
+#define WIDGET_COUNT    5
 
 // Progressbar types.
 #define PROGRESS_STEPS     0
 #define PROGRESS_BATTERY   1
 #define PROGRESS_CALORIES  2
 #define PROGRESS_DISTANCE  3
+#define PROGRESS_COUNT     4
 
 // Temperature units.
 #define TEMP_CELSIUS     0
 #define TEMP_FAHRENHEIT  1
+#define TEMP_UNIT_COUNT  2
 
 // Clock color schemes (hour color / minute color). The high-contrast variants
 // (white/white, white/light) read best on the e-paper display.

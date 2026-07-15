@@ -67,19 +67,26 @@ Pebble.addEventListener('ready', function() {
   setInterval(maybeFetchWeather, 5 * 60 * 1000);
 });
 
+// Coerces a Clay select (returned as a string) to an int. A missing or
+// unparseable value is dropped rather than forced to 0: 0 is a real setting
+// ("None" for a widget slot), so sending it would silently reset the face.
+function toInt(dict, key) {
+  var n = parseInt(dict[key], 10);
+  if (isNaN(n)) {
+    delete dict[key];
+  } else {
+    dict[key] = n;
+  }
+}
+
 // On Clay close: forward the settings to the watch (coercing selects to ints).
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) { return; }
   var dict = clay.getSettings(e.response);
-  dict[keys.LAYOUT_MODE] = parseInt(dict[keys.LAYOUT_MODE], 10) || 0;
-  dict[keys.PROGRESS_TYPE] = parseInt(dict[keys.PROGRESS_TYPE], 10) || 0;
-  dict[keys.WIDGET_LEFT] = parseInt(dict[keys.WIDGET_LEFT], 10) || 0;
-  dict[keys.WIDGET_MID] = parseInt(dict[keys.WIDGET_MID], 10) || 0;
-  dict[keys.WIDGET_RIGHT] = parseInt(dict[keys.WIDGET_RIGHT], 10) || 0;
-  dict[keys.TEMP_UNIT] = parseInt(dict[keys.TEMP_UNIT], 10) || 0;
-  dict[keys.LANGUAGE] = parseInt(dict[keys.LANGUAGE], 10) || 0;
-  dict[keys.CLOCK_SCHEME] = parseInt(dict[keys.CLOCK_SCHEME], 10) || 0;
-  localStorage.setItem('TEMP_UNIT', String(dict[keys.TEMP_UNIT]));
+  [keys.LAYOUT_MODE, keys.PROGRESS_TYPE, keys.WIDGET_LEFT, keys.WIDGET_MID,
+   keys.WIDGET_RIGHT, keys.TEMP_UNIT, keys.LANGUAGE, keys.CLOCK_SCHEME
+  ].forEach(function(key) { toInt(dict, key); });
+  localStorage.setItem('TEMP_UNIT', String(dict[keys.TEMP_UNIT] || 0));
   Pebble.sendAppMessage(dict,
     function() { fetchWeather(); },  // re-fetch so unit change takes effect
     function() { console.log('settings send failed'); }

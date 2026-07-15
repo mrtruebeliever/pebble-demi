@@ -13,6 +13,37 @@ void config_set_change_callback(void (*cb)(void)) {
   s_change_cb = cb;
 }
 
+// Reads a tuple as an integer, honouring its actual type and width. The phone
+// packs integers at their smallest width (a 1 arrives as a single byte) and
+// Clay hands select values over as strings, so reading value->int32 blindly
+// picks up neighbouring bytes and yields garbage.
+static int32_t tuple_int(const Tuple *t) {
+  switch (t->type) {
+    case TUPLE_CSTRING:
+      return (int32_t)atoi(t->value->cstring);
+    case TUPLE_INT:
+      if (t->length == 1) return t->value->int8;
+      if (t->length == 2) return t->value->int16;
+      return t->value->int32;
+    case TUPLE_UINT:
+      if (t->length == 1) return t->value->uint8;
+      if (t->length == 2) return t->value->uint16;
+      return (int32_t)t->value->uint32;
+    default:
+      return 0;
+  }
+}
+
+// Applies an enum setting only when it falls inside [0, count). A malformed or
+// unknown value leaves the previous setting alone rather than blanking the UI.
+static void set_enum(int *dst, int32_t v, int count) {
+  if (v >= 0 && v < count) {
+    *dst = (int)v;
+  } else {
+    APP_LOG(APP_LOG_LEVEL_WARNING, "ignored out-of-range setting: %d", (int)v);
+  }
+}
+
 // Loads settings from persist storage, using defaults for missing keys.
 void config_load(void) {
   s_config.accent_color      = GColorFromHEX(DEFAULT_ACCENT_COLOR);
@@ -45,11 +76,13 @@ void config_load(void) {
   if (persist_exists(PERSIST_ACCENT_COLOR)) {
     s_config.accent_color = (GColor){ .argb = (uint8_t)persist_read_int(PERSIST_ACCENT_COLOR) };
   }
+  // Enum settings are range-checked on the way in too: an earlier build could
+  // have persisted a garbage value, and that must not survive the upgrade.
   if (persist_exists(PERSIST_LAYOUT_MODE)) {
-    s_config.layout_mode = persist_read_int(PERSIST_LAYOUT_MODE);
+    set_enum(&s_config.layout_mode, persist_read_int(PERSIST_LAYOUT_MODE), LAYOUT_COUNT);
   }
   if (persist_exists(PERSIST_PROGRESS_TYPE)) {
-    s_config.progress_type = persist_read_int(PERSIST_PROGRESS_TYPE);
+    set_enum(&s_config.progress_type, persist_read_int(PERSIST_PROGRESS_TYPE), PROGRESS_COUNT);
   }
   if (persist_exists(PERSIST_PROGRESS_INFO)) {
     s_config.progress_info = persist_read_bool(PERSIST_PROGRESS_INFO);
@@ -58,25 +91,25 @@ void config_load(void) {
     s_config.progress_swap = persist_read_bool(PERSIST_PROGRESS_SWAP);
   }
   if (persist_exists(PERSIST_WIDGET_LEFT)) {
-    s_config.widget_left = persist_read_int(PERSIST_WIDGET_LEFT);
+    set_enum(&s_config.widget_left, persist_read_int(PERSIST_WIDGET_LEFT), WIDGET_COUNT);
   }
   if (persist_exists(PERSIST_WIDGET_MID)) {
-    s_config.widget_mid = persist_read_int(PERSIST_WIDGET_MID);
+    set_enum(&s_config.widget_mid, persist_read_int(PERSIST_WIDGET_MID), WIDGET_COUNT);
   }
   if (persist_exists(PERSIST_WIDGET_RIGHT)) {
-    s_config.widget_right = persist_read_int(PERSIST_WIDGET_RIGHT);
+    set_enum(&s_config.widget_right, persist_read_int(PERSIST_WIDGET_RIGHT), WIDGET_COUNT);
   }
   if (persist_exists(PERSIST_BATTERY_PCT)) {
     s_config.battery_pct = persist_read_bool(PERSIST_BATTERY_PCT);
   }
   if (persist_exists(PERSIST_TEMP_UNIT)) {
-    s_config.temp_unit = persist_read_int(PERSIST_TEMP_UNIT);
+    set_enum(&s_config.temp_unit, persist_read_int(PERSIST_TEMP_UNIT), TEMP_UNIT_COUNT);
   }
   if (persist_exists(PERSIST_LANGUAGE)) {
-    s_config.language = persist_read_int(PERSIST_LANGUAGE);
+    set_enum(&s_config.language, persist_read_int(PERSIST_LANGUAGE), LANG_COUNT);
   }
   if (persist_exists(PERSIST_CLOCK_SCHEME)) {
-    s_config.clock_scheme = persist_read_int(PERSIST_CLOCK_SCHEME);
+    set_enum(&s_config.clock_scheme, persist_read_int(PERSIST_CLOCK_SCHEME), CLOCK_SCHEME_COUNT);
   }
   if (persist_exists(PERSIST_CLOCK_24H)) {
     s_config.clock_24h = persist_read_bool(PERSIST_CLOCK_24H);
@@ -123,70 +156,70 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   Tuple *t;
 
   if ((t = dict_find(iter, MESSAGE_KEY_ACCENT_COLOR))) {
-    s_config.accent_color = GColorFromHEX(t->value->int32);
+    s_config.accent_color = GColorFromHEX(tuple_int(t));
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_LAYOUT_MODE))) {
-    s_config.layout_mode = t->value->int32;
+    set_enum(&s_config.layout_mode, tuple_int(t), LAYOUT_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_TYPE))) {
-    s_config.progress_type = t->value->int32;
+    set_enum(&s_config.progress_type, tuple_int(t), PROGRESS_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_INFO))) {
-    s_config.progress_info = (t->value->int32 != 0);
+    s_config.progress_info = (tuple_int(t) != 0);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_SWAP))) {
-    s_config.progress_swap = (t->value->int32 != 0);
+    s_config.progress_swap = (tuple_int(t) != 0);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_LEFT))) {
-    s_config.widget_left = t->value->int32;
+    set_enum(&s_config.widget_left, tuple_int(t), WIDGET_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_MID))) {
-    s_config.widget_mid = t->value->int32;
+    set_enum(&s_config.widget_mid, tuple_int(t), WIDGET_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WIDGET_RIGHT))) {
-    s_config.widget_right = t->value->int32;
+    set_enum(&s_config.widget_right, tuple_int(t), WIDGET_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_BATTERY_PCT))) {
-    s_config.battery_pct = (t->value->int32 != 0);
+    s_config.battery_pct = (tuple_int(t) != 0);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_TEMP_UNIT))) {
-    s_config.temp_unit = t->value->int32;
+    set_enum(&s_config.temp_unit, tuple_int(t), TEMP_UNIT_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_LANGUAGE))) {
-    s_config.language = t->value->int32;
+    set_enum(&s_config.language, tuple_int(t), LANG_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_CLOCK_SCHEME))) {
-    s_config.clock_scheme = t->value->int32;
+    set_enum(&s_config.clock_scheme, tuple_int(t), CLOCK_SCHEME_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_CLOCK_24H))) {
-    s_config.clock_24h = (t->value->int32 != 0);
+    s_config.clock_24h = (tuple_int(t) != 0);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_ACCENT))) {
-    s_config.weather_accent = (t->value->int32 != 0);
+    s_config.weather_accent = (tuple_int(t) != 0);
     settings_changed = true;
   }
 
   // Weather updates arrive on the same inbox, under their own persist keys.
   if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_TEMP))) {
-    s_config.weather_temp = t->value->int32;
+    s_config.weather_temp = tuple_int(t);
     weather_changed = true;
     APP_LOG(APP_LOG_LEVEL_DEBUG, "weather temp received: %d", s_config.weather_temp);
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_COND))) {
-    s_config.weather_condition = t->value->int32;
+    s_config.weather_condition = tuple_int(t);
     weather_changed = true;
   }
 
