@@ -75,8 +75,32 @@
           { "label": "Afstand", "value": "3" }
         ]
       },
-      { "type": "toggle", "messageKey": "PROGRESS_INFO", "label": "Icoon en waarde tonen", "defaultValue": true },
-      { "type": "toggle", "messageKey": "PROGRESS_SWAP", "label": "Icoon en waarde omwisselen", "defaultValue": false }
+      {
+        "type": "select",
+        "messageKey": "PROGRESS_INFO",
+        "label": "Naast de bar",
+        "defaultValue": "2",
+        "options": [
+          { "label": "Niets", "value": "0" },
+          { "label": "Alleen icoon", "value": "1" },
+          { "label": "Icoon en waarde", "value": "2" }
+        ]
+      },
+      { "type": "toggle", "messageKey": "PROGRESS_SWAP", "label": "Icoon en waarde omwisselen", "defaultValue": false },
+      { "type": "toggle", "messageKey": "ACCENT_2_ENABLE", "label": "Tweede bar eigen kleur", "defaultValue": false },
+      {
+        "type": "color",
+        "messageKey": "ACCENT_COLOR_2",
+        "label": "Kleur tweede bar",
+        "defaultValue": "00ffff",
+        "sunlight": false,
+        "layout": [
+          ["00b894", "00ff7f", "00ffff"],
+          ["5baee8", "0055ff", "c084fc"],
+          ["ff55ff", "ff5aaa", "e05555"],
+          ["e8a020", "ffdd00", "ffffff"]
+        ]
+      }
     ]
   },
   {

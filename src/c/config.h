@@ -20,6 +20,9 @@
 #define PERSIST_WEATHER_TIME   20
 #define PERSIST_PROGRESS_SWAP  21
 #define PERSIST_PROGRESS_TYPE_2 22
+#define PERSIST_PROGRESS_INFO_MODE 23  // replaces the bool at PERSIST_PROGRESS_INFO
+#define PERSIST_ACCENT_2_ENABLE 24
+#define PERSIST_ACCENT_COLOR_2  25
 
 // Layout modes: hours above minutes with a horizontal bar between them, hours
 // beside minutes split by a vertical bar, or hours beside minutes framed by two
@@ -36,6 +39,12 @@
 #define WIDGET_BATTERY  3
 #define WIDGET_HEART    4
 #define WIDGET_COUNT    5
+
+// How much detail sits beside the progressbar.
+#define PROGRESS_INFO_NONE  0
+#define PROGRESS_INFO_ICON  1
+#define PROGRESS_INFO_BOTH  2
+#define PROGRESS_INFO_COUNT 3
 
 // Progressbar types.
 #define PROGRESS_STEPS     0
@@ -101,16 +110,20 @@
 #define DEFAULT_WIDGET_RIGHT   WIDGET_WEATHER
 #define DEFAULT_BATTERY_PCT    true   // show the % beside the battery glyph
 #define DEFAULT_LAYOUT_MODE    LAYOUT_VERTICAL
-#define DEFAULT_PROGRESS_INFO  true   // show the icon + value flanking the bar
+#define DEFAULT_PROGRESS_INFO  PROGRESS_INFO_BOTH  // icon + value flanking the bar
 #define DEFAULT_PROGRESS_SWAP  false  // icon leads, value trails
+#define DEFAULT_ACCENT_2_ENABLE false   // second bar follows the main accent
+#define DEFAULT_ACCENT_COLOR_2  0x00FFFF  // GColorCyan, only once enabled
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
   GColor accent_color;
+  GColor accent_color_2;  // second bar's color, only when accent_2_enable
+  bool   accent_2_enable; // give the dual layout's lower bar its own color
   int    layout_mode;    // LAYOUT_VERTICAL / LAYOUT_HORIZONTAL / LAYOUT_DUAL
   int    progress_type;
   int    progress_type_2; // metric for the lower bar in the dual layout
-  bool   progress_info;  // show the progressbar icon and value label
+  int    progress_info;  // PROGRESS_INFO_* : nothing / icon / icon + value
   bool   progress_swap; // trade the icon and value places around the bar
   int    widget_left;   // WIDGET_* type shown in the left bottom slot
   int    widget_mid;    // WIDGET_* type shown in the middle bottom slot

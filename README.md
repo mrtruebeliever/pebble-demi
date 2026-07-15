@@ -19,15 +19,18 @@ UUID: `f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8`
 
 Three ways to read the clock: **vertical** (hours above minutes, split by a horizontal bar),
 **horizontal** (hours beside minutes, split by a vertical bar), or **horizontal with two
-bars** — hours beside minutes, framed by a bar above and below, each showing its own metric.
-The bar's icon and value can be hidden for a barer face, or swapped to the opposite side.
+bars** — hours beside minutes, framed by a bar above and below, each tracking its own metric
+and, optionally, its own color. Beside each bar you can show the icon and value, the icon
+alone, or nothing at all; showing less lengthens the track.
 
 | | |
 | --- | --- |
-| ![Two bars](demi_dual.png) | ![Horizontal layout](demi_horizontal.png) |
-| Two bars · steps above, battery below | Horizontal · icon above, value below |
-| ![Horizontal, bar only](demi_horizontal_minimal.png) | ![Vertical, bar only](demi_minimal.png) |
-| Horizontal · icon and value hidden | Vertical · icon and value hidden |
+| ![Two bars](demi_dual.png) | ![Two bars, icons only](demi_dual_icons.png) |
+| Two bars · steps above, battery below | Two bars · icons only, second bar in its own color |
+| ![Horizontal layout](demi_horizontal.png) | ![Horizontal, bar only](demi_horizontal_minimal.png) |
+| Horizontal · icon above, value below | Horizontal · nothing beside the bar |
+| ![Two bars, bar only](demi_dual_minimal.png) | ![Vertical, bar only](demi_minimal.png) |
+| Two bars · nothing beside the bars | Vertical · nothing beside the bar |
 | ![Vertical, swapped](demi_swap.png) | |
 | Vertical · swapped, so the bar fills right-to-left | |
 
@@ -57,7 +60,8 @@ Open the watchface settings in the Pebble app to configure:
 | **Layout** | Vertical (hours above minutes) / Horizontal, vertical bar / Horizontal, two bars — default vertical |
 | **Progress bar** | Steps / Battery / Calories / Distance |
 | **Second bar** | Steps / Battery / Calories / Distance — the lower bar in the two-bar layout, ignored elsewhere — default battery |
-| **Show icon and value** | on / off — off hides both and widens the bar — default on |
+| **Beside the bar** | Nothing / Icon only / Icon and value — showing less lengthens the track — default icon and value |
+| **Second bar color** | on / off, plus a 12-swatch picker — gives the two-bar layout's lower bar its own color. Off (default) means it follows the main accent, so changing that doesn't strand it |
 | **Swap icon and value** | on / off — trades their places and reverses the bar's fill direction with them (vertical: value left, icon right, fills right-to-left; horizontal: value above, icon below, fills bottom-up) — default off |
 | **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate — default date / — / weather |
 | **Battery percentage** | on / off — show the % beside the battery glyph, or glyph only — default on |

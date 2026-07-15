@@ -47,6 +47,8 @@ static void set_enum(int *dst, int32_t v, int count) {
 // Loads settings from persist storage, using defaults for missing keys.
 void config_load(void) {
   s_config.accent_color      = GColorFromHEX(DEFAULT_ACCENT_COLOR);
+  s_config.accent_color_2    = GColorFromHEX(DEFAULT_ACCENT_COLOR_2);
+  s_config.accent_2_enable   = DEFAULT_ACCENT_2_ENABLE;
   s_config.layout_mode       = DEFAULT_LAYOUT_MODE;
   s_config.progress_type     = DEFAULT_PROGRESS_TYPE;
   s_config.progress_type_2   = DEFAULT_PROGRESS_TYPE_2;
@@ -88,8 +90,20 @@ void config_load(void) {
   if (persist_exists(PERSIST_PROGRESS_TYPE_2)) {
     set_enum(&s_config.progress_type_2, persist_read_int(PERSIST_PROGRESS_TYPE_2), PROGRESS_COUNT);
   }
-  if (persist_exists(PERSIST_PROGRESS_INFO)) {
-    s_config.progress_info = persist_read_bool(PERSIST_PROGRESS_INFO);
+  // Was a bool ("show icon + value") before the icon-only option existed. Fall
+  // back to the old key so an upgrade keeps the user's choice.
+  if (persist_exists(PERSIST_PROGRESS_INFO_MODE)) {
+    set_enum(&s_config.progress_info, persist_read_int(PERSIST_PROGRESS_INFO_MODE),
+             PROGRESS_INFO_COUNT);
+  } else if (persist_exists(PERSIST_PROGRESS_INFO)) {
+    s_config.progress_info = persist_read_bool(PERSIST_PROGRESS_INFO) ? PROGRESS_INFO_BOTH
+                                                                      : PROGRESS_INFO_NONE;
+  }
+  if (persist_exists(PERSIST_ACCENT_2_ENABLE)) {
+    s_config.accent_2_enable = persist_read_bool(PERSIST_ACCENT_2_ENABLE);
+  }
+  if (persist_exists(PERSIST_ACCENT_COLOR_2)) {
+    s_config.accent_color_2 = (GColor){ .argb = (uint8_t)persist_read_int(PERSIST_ACCENT_COLOR_2) };
   }
   if (persist_exists(PERSIST_PROGRESS_SWAP)) {
     s_config.progress_swap = persist_read_bool(PERSIST_PROGRESS_SWAP);
@@ -133,7 +147,9 @@ void config_save(void) {
   persist_write_int(PERSIST_LAYOUT_MODE, s_config.layout_mode);
   persist_write_int(PERSIST_PROGRESS_TYPE, s_config.progress_type);
   persist_write_int(PERSIST_PROGRESS_TYPE_2, s_config.progress_type_2);
-  persist_write_bool(PERSIST_PROGRESS_INFO, s_config.progress_info);
+  persist_write_int(PERSIST_PROGRESS_INFO_MODE, s_config.progress_info);
+  persist_write_bool(PERSIST_ACCENT_2_ENABLE, s_config.accent_2_enable);
+  persist_write_int(PERSIST_ACCENT_COLOR_2, s_config.accent_color_2.argb);
   persist_write_bool(PERSIST_PROGRESS_SWAP, s_config.progress_swap);
   persist_write_int(PERSIST_WIDGET_LEFT, s_config.widget_left);
   persist_write_int(PERSIST_WIDGET_MID, s_config.widget_mid);
@@ -177,7 +193,15 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_INFO))) {
-    s_config.progress_info = (tuple_int(t) != 0);
+    set_enum(&s_config.progress_info, tuple_int(t), PROGRESS_INFO_COUNT);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_ACCENT_2_ENABLE))) {
+    s_config.accent_2_enable = (tuple_int(t) != 0);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_ACCENT_COLOR_2))) {
+    s_config.accent_color_2 = GColorFromHEX(tuple_int(t));
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PROGRESS_SWAP))) {
