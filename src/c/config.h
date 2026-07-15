@@ -13,6 +13,17 @@
 #define PERSIST_WIDGET_MID     13
 #define PERSIST_WIDGET_RIGHT   14
 #define PERSIST_BATTERY_PCT    15
+#define PERSIST_LAYOUT_MODE    16
+#define PERSIST_PROGRESS_INFO  17
+#define PERSIST_WEATHER_TEMP   18
+#define PERSIST_WEATHER_COND   19
+#define PERSIST_WEATHER_TIME   20
+#define PERSIST_PROGRESS_SWAP  21
+
+// Layout modes: hours above minutes with a horizontal bar between them, or
+// hours beside minutes split by a vertical bar.
+#define LAYOUT_VERTICAL    0
+#define LAYOUT_HORIZONTAL  1
 
 // Bottom-bar widget types (one per slot: left / middle / right).
 #define WIDGET_NONE     0
@@ -59,8 +70,13 @@
 #define WEATHER_LIGHT_SNOW   5
 #define WEATHER_HEAVY_SNOW   6
 
-// Sentinel meaning "no weather data received yet".
+// Sentinels meaning "no weather data received yet" (or the stored data expired).
+// The widget draws nothing in that state rather than inventing a condition.
 #define WEATHER_TEMP_NONE  INT32_MIN
+#define WEATHER_COND_NONE  -1
+
+// Stored weather older than this is discarded on load and treated as absent.
+#define WEATHER_MAX_AGE_S  (3 * 60 * 60)
 
 // Default values. The slot defaults reproduce the previous look:
 // date left, weather right, middle empty (battery is opt-in via a slot).
@@ -75,11 +91,17 @@
 #define DEFAULT_WIDGET_MID     WIDGET_NONE
 #define DEFAULT_WIDGET_RIGHT   WIDGET_WEATHER
 #define DEFAULT_BATTERY_PCT    true   // show the % beside the battery glyph
+#define DEFAULT_LAYOUT_MODE    LAYOUT_VERTICAL
+#define DEFAULT_PROGRESS_INFO  true   // show the icon + value flanking the bar
+#define DEFAULT_PROGRESS_SWAP  false  // icon leads, value trails
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
   GColor accent_color;
+  int    layout_mode;   // LAYOUT_VERTICAL / LAYOUT_HORIZONTAL
   int    progress_type;
+  bool   progress_info; // show the progressbar icon and value label
+  bool   progress_swap; // trade the icon and value places around the bar
   int    widget_left;   // WIDGET_* type shown in the left bottom slot
   int    widget_mid;    // WIDGET_* type shown in the middle bottom slot
   int    widget_right;  // WIDGET_* type shown in the right bottom slot

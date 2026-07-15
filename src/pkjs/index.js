@@ -71,6 +71,7 @@ Pebble.addEventListener('ready', function() {
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) { return; }
   var dict = clay.getSettings(e.response);
+  dict[keys.LAYOUT_MODE] = parseInt(dict[keys.LAYOUT_MODE], 10) || 0;
   dict[keys.PROGRESS_TYPE] = parseInt(dict[keys.PROGRESS_TYPE], 10) || 0;
   dict[keys.WIDGET_LEFT] = parseInt(dict[keys.WIDGET_LEFT], 10) || 0;
   dict[keys.WIDGET_MID] = parseInt(dict[keys.WIDGET_MID], 10) || 0;

@@ -1,8 +1,8 @@
 # Demi
 
 A configurable watchface for the **Pebble Time 2** (platform `emery`). Demi shows large
-anti-aliased vector digits, a configurable progress bar, and three configurable widget
-slots (date / weather / battery / heart rate) along the bottom.
+anti-aliased vector digits, a configurable progress bar in one of two layouts, and three
+configurable widget slots (date / weather / battery / heart rate) along the bottom.
 
 ![Demi — green, steps, 24h](demi.png)
 
@@ -15,11 +15,27 @@ slots (date / weather / battery / heart rate) along the bottom.
 
 UUID: `f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8`
 
+## Layouts
+
+The clock reads either **vertically** (hours above minutes, split by a horizontal bar) or
+**horizontally** (hours beside minutes, split by a vertical bar). The bar's icon and value
+can be hidden for a barer face, or swapped to the opposite side.
+
+| | |
+| --- | --- |
+| ![Horizontal layout](demi_horizontal.png) | ![Horizontal, bar only](demi_horizontal_minimal.png) |
+| Horizontal · icon above, value below | Horizontal · icon and value hidden |
+| ![Vertical, bar only](demi_minimal.png) | ![Vertical, swapped](demi_swap.png) |
+| Vertical · icon and value hidden | Vertical · icon and value swapped |
+
 ## Design
 
-- **Hours** on top in Rajdhani Bold (large, ~54% of the clock area), **minutes** below in
-  Rajdhani Light (~49%).
-- A **progress bar** between them (icon + track + value in the accent color).
+- **Hours** and **minutes** in Rajdhani Bold / Light — stacked (~54% / ~49% of the clock
+  area) in the vertical layout, or side by side in the horizontal one, where each is scaled
+  to fit its own column.
+- A **progress bar** between them (icon + track + value in the accent color), horizontal or
+  vertical to match the layout. The vertical bar fills top-down, mirroring the horizontal
+  bar's left-to-right fill.
 - A **bottom row** of three configurable slots — left / middle / right — each showing one of:
   date, weather, battery, heart rate, or nothing.
 - The layout is derived from the real PT2 screen size (no hardcoded dimensions), so it
@@ -33,8 +49,11 @@ Open the watchface settings in the Pebble app to configure:
 | --- | --- |
 | **Accent color** | 12-swatch palette: green, mint, cyan, blue, indigo, purple, magenta, pink, red, orange, yellow, white |
 | **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper), **accent–white, white–accent, accent–darkgrey, accent–lightgrey** (accent variants track the chosen accent color) |
-| **24-hour clock** | on (24h) / off (12h with AM/PM label right of the hour) — default 24h |
+| **24-hour clock** | on (24h) / off (12h with AM/PM label beside the hour, or below it in the horizontal layout) — default 24h |
+| **Layout** | Vertical (hours above minutes) / Horizontal (hours beside minutes) — default vertical |
 | **Progress bar** | Steps / Battery / Calories / Distance |
+| **Show icon and value** | on / off — off hides both and widens the bar — default on |
+| **Swap icon and value** | on / off — trades their places (vertical: value left, icon right; horizontal: value above, icon below) — default off |
 | **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate — default date / — / weather |
 | **Battery percentage** | on / off — show the % beside the battery glyph, or glyph only — default on |
 | **Language** (date) | Nederlands / English / Deutsch / Français |
@@ -68,7 +87,12 @@ is available (e.g. in the emulator).
 ## Weather
 
 Weather is fetched from **[Open-Meteo](https://open-meteo.com/)** (no API key required) in
-`src/pkjs/index.js`. WMO weather codes are mapped to 7 conditions by `condFromWMO`:
+`src/pkjs/index.js`. The last reading is stored on the watch and shown again immediately on
+the next launch, so returning to the face no longer flashes a placeholder while the phone
+re-fetches. A stored reading older than **3 hours** is discarded; until real data arrives the
+weather slot simply stays empty rather than showing a guessed condition.
+
+WMO weather codes are mapped to 7 conditions by `condFromWMO`:
 
 | # | Condition | Color |
 | --- | --- | --- |

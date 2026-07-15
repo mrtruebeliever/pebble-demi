@@ -33,6 +33,16 @@
           { "label": "Accent / lichtgrijs", "value": "7" }
         ]
       },
+      {
+        "type": "select",
+        "messageKey": "LAYOUT_MODE",
+        "label": "Indeling",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Verticaal (uren boven minuten)", "value": "0" },
+          { "label": "Horizontaal (uren naast minuten)", "value": "1" }
+        ]
+      },
       { "type": "toggle", "messageKey": "CLOCK_24H", "label": "24-uurs klok", "defaultValue": true }
     ]
   },
@@ -51,7 +61,9 @@
           { "label": "Calorieën", "value": "2" },
           { "label": "Afstand", "value": "3" }
         ]
-      }
+      },
+      { "type": "toggle", "messageKey": "PROGRESS_INFO", "label": "Icoon en waarde tonen", "defaultValue": true },
+      { "type": "toggle", "messageKey": "PROGRESS_SWAP", "label": "Icoon en waarde omwisselen", "defaultValue": false }
     ]
   },
   {
