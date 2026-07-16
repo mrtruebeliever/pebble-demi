@@ -122,7 +122,11 @@ export PATH="$HOME/.local/bin:$PATH"
 cd "$(git rev-parse --show-toplevel)"
 pebble build
 pebble install --emulator emery
+python3 tools/release.py              # size-optimized build/Demi-release.pbw for the store
 ```
+
+`tools/release.py` writes a size-optimized `.pbw` for the appstore (minifies the JS bundle and
+drops the source map, roughly halving the download; needs `node`/`npx`).
 
 To install on a real Pebble Time 2, use the **Pebble cloud install** flow (Dev Connect +
 `pebble install --cloudpebble`).
