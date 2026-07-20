@@ -1,7 +1,7 @@
 {
   "name": "demi",
   "author": "mrtruebeliever",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "license": "MIT",
   "keywords": [
     "pebble-app"
@@ -46,7 +46,12 @@
       "PROGRESS_SWAP",
       "PROGRESS_TYPE_2",
       "ACCENT_2_ENABLE",
-      "ACCENT_COLOR_2"
+      "ACCENT_COLOR_2",
+      "CUSTOM1_VALUE",
+      "CUSTOM1_ICON",
+      "CUSTOM2_VALUE",
+      "CUSTOM2_ICON",
+      "CUSTOM_URL"
     ],
     "resources": {
       "media": [
@@ -142,6 +147,21 @@
           "type": "raw",
           "name": "IMG_BT_OFF",
           "file": "icons/bt_off.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_GAUGE",
+          "file": "icons/gauge.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_CLAUDE_SESSION",
+          "file": "icons/claude_session.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_CLAUDE_WEEK",
+          "file": "icons/claude_week.pdc"
         }
       ]
     }

@@ -60,7 +60,9 @@
           { "label": "Stappen", "value": "0" },
           { "label": "Batterij", "value": "1" },
           { "label": "Calorieën", "value": "2" },
-          { "label": "Afstand", "value": "3" }
+          { "label": "Afstand", "value": "3" },
+          { "label": "Aangepast 1 (JSON-url)", "value": "4" },
+          { "label": "Aangepast 2 (JSON-url)", "value": "5" }
         ]
       },
       {
@@ -72,7 +74,9 @@
           { "label": "Stappen", "value": "0" },
           { "label": "Batterij", "value": "1" },
           { "label": "Calorieën", "value": "2" },
-          { "label": "Afstand", "value": "3" }
+          { "label": "Afstand", "value": "3" },
+          { "label": "Aangepast 1 (JSON-url)", "value": "4" },
+          { "label": "Aangepast 2 (JSON-url)", "value": "5" }
         ]
       },
       {
@@ -165,6 +169,23 @@
           { "label": "Deutsch", "value": "2" },
           { "label": "Français", "value": "3" }
         ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      { "type": "heading", "defaultValue": "Aangepast (JSON-url)" },
+      {
+        "type": "text",
+        "defaultValue": "Voor de \"Aangepast 1/2\"-bars: een url die JSON teruggeeft in de vorm <code>{\"items\":[{\"name\":\"...\",\"value\":42}]}</code> (value 0-100, item 0 → Aangepast 1, item 1 → Aangepast 2). De url zelf blijft op de telefoon en wordt nooit naar het horloge gestuurd — alleen de opgehaalde percentages."
+      },
+      {
+        "type": "input",
+        "messageKey": "CUSTOM_URL",
+        "label": "URL",
+        "defaultValue": "",
+        "attributes": { "placeholder": "https://...", "type": "url" }
       }
     ]
   },

@@ -58,8 +58,8 @@ Open the watchface settings in the Pebble app to configure:
 | **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper), **accent–white, white–accent, accent–darkgrey, accent–lightgrey** (accent variants track the chosen accent color) |
 | **24-hour clock** | on (24h) / off (12h with AM/PM label beside the hour, or below it in the horizontal layout) — default 24h |
 | **Layout** | Vertical (hours above minutes) / Horizontal, vertical bar / Horizontal, two bars — default vertical |
-| **Progress bar** | Steps / Battery / Calories / Distance |
-| **Second bar** | Steps / Battery / Calories / Distance — the lower bar in the two-bar layout, ignored elsewhere — default battery |
+| **Progress bar** | Steps / Battery / Calories / Distance / Custom 1 / Custom 2 |
+| **Second bar** | Steps / Battery / Calories / Distance / Custom 1 / Custom 2 — the lower bar in the two-bar layout, ignored elsewhere — default battery |
 | **Beside the bar** | Nothing / Icon only / Icon and value — showing less lengthens the track — default icon and value |
 | **Second bar color** | on / off, plus a 12-swatch picker — gives the two-bar layout's lower bar its own color. Off (default) means it follows the main accent, so changing that doesn't strand it |
 | **Swap icon and value** | on / off — trades their places and reverses the bar's fill direction with them (vertical: value left, icon right, fills right-to-left; horizontal: value above, icon below, fills bottom-up) — default off |
@@ -112,6 +112,28 @@ WMO weather codes are mapped to 7 conditions by `condFromWMO`:
 | 4 | Heavy rain | PictonBlue |
 | 5 | Light snow | Celeste |
 | 6 | Heavy snow | Celeste |
+
+## Custom metrics (JSON url)
+
+The **Custom 1** / **Custom 2** progress-bar types let you track any percentage-based
+stat that isn't steps/battery/calories/distance. In settings, under "Aangepast
+(JSON-url)", enter a url that returns:
+
+```json
+{ "items": [ { "name": "session", "value": 42 }, { "name": "week", "value": 78 } ] }
+```
+
+`value` is 0–100; item 0 maps to Custom 1, item 1 to Custom 2. The icon is picked from
+`name`: an hourglass for anything containing "session", a burst icon for anything
+containing "week", otherwise a generic gauge dial.
+
+**Privacy:** the url itself is only ever read by the phone (`src/pkjs/index.js`,
+`fetchCustom`) and stored in `localStorage` — it is stripped from the settings dict
+before anything is sent to the watch, so only the parsed percentage and icon id cross
+Bluetooth. The fetch is refused outright past 8KB (checked during download and again
+before parsing), and the watch independently clamps whatever it receives to 0–100
+before it reaches the bar-width math, rather than trusting the phone unconditionally.
+Refreshed every ~3 minutes.
 
 ## Building & installing
 

@@ -44,6 +44,17 @@ static void set_enum(int *dst, int32_t v, int count) {
   }
 }
 
+// Clamps an incoming custom-metric value to a valid percentage. Defense in
+// depth for a value sourced from an arbitrary user-configured url: the phone
+// already clamps before sending, but this feeds directly into bar-width
+// arithmetic (track_w * pct / 100), so the watch shouldn't trust that
+// unconditionally.
+static int32_t clamp_pct(int32_t v) {
+  if (v < 0) return 0;
+  if (v > 100) return 100;
+  return v;
+}
+
 // Loads settings from persist storage, using defaults for missing keys.
 void config_load(void) {
   s_config.accent_color      = GColorFromHEX(DEFAULT_ACCENT_COLOR);
@@ -65,6 +76,10 @@ void config_load(void) {
   s_config.weather_accent    = DEFAULT_WEATHER_ACCENT;
   s_config.weather_temp      = WEATHER_TEMP_NONE;
   s_config.weather_condition = WEATHER_COND_NONE;
+  s_config.custom1_value     = CUSTOM_VALUE_NONE;
+  s_config.custom1_icon      = CUSTOM_ICON_GAUGE;
+  s_config.custom2_value     = CUSTOM_VALUE_NONE;
+  s_config.custom2_icon      = CUSTOM_ICON_GAUGE;
 
   // Restore the last weather snapshot unless it has gone stale. A negative age
   // means the clock moved backwards, which makes the timestamp untrustworthy.
@@ -73,6 +88,19 @@ void config_load(void) {
     if (age >= 0 && age < WEATHER_MAX_AGE_S) {
       s_config.weather_temp      = persist_read_int(PERSIST_WEATHER_TEMP);
       s_config.weather_condition = persist_read_int(PERSIST_WEATHER_COND);
+    }
+  }
+
+  // Restore the last custom-metric snapshot unless it has gone stale, same
+  // reasoning as weather above. Both slots share one timestamp since they
+  // always arrive together from the same fetch.
+  if (persist_exists(PERSIST_CUSTOM_TIME) && persist_exists(PERSIST_CUSTOM1_VALUE)) {
+    int age = (int)time(NULL) - persist_read_int(PERSIST_CUSTOM_TIME);
+    if (age >= 0 && age < CUSTOM_MAX_AGE_S) {
+      s_config.custom1_value = persist_read_int(PERSIST_CUSTOM1_VALUE);
+      s_config.custom1_icon  = persist_read_int(PERSIST_CUSTOM1_ICON);
+      s_config.custom2_value = persist_read_int(PERSIST_CUSTOM2_VALUE);
+      s_config.custom2_icon  = persist_read_int(PERSIST_CUSTOM2_ICON);
     }
   }
 
@@ -170,10 +198,21 @@ static void weather_save(void) {
   persist_write_int(PERSIST_WEATHER_TIME, (int)time(NULL));
 }
 
+// Stores the latest custom-metric values with a shared timestamp, same
+// reasoning as weather_save above.
+static void custom_save(void) {
+  persist_write_int(PERSIST_CUSTOM1_VALUE, s_config.custom1_value);
+  persist_write_int(PERSIST_CUSTOM1_ICON, s_config.custom1_icon);
+  persist_write_int(PERSIST_CUSTOM2_VALUE, s_config.custom2_value);
+  persist_write_int(PERSIST_CUSTOM2_ICON, s_config.custom2_icon);
+  persist_write_int(PERSIST_CUSTOM_TIME, (int)time(NULL));
+}
+
 // Applies any settings/weather present in an inbound AppMessage, then redraws.
 void config_inbox_received(DictionaryIterator *iter, void *context) {
   bool settings_changed = false;
   bool weather_changed = false;
+  bool custom_changed = false;
   Tuple *t;
 
   if ((t = dict_find(iter, MESSAGE_KEY_ACCENT_COLOR))) {
@@ -256,11 +295,33 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
     weather_changed = true;
   }
 
+  // Custom-metric updates arrive on the same inbox, under their own persist
+  // keys. The phone always sends both value+icon for a slot together.
+  if ((t = dict_find(iter, MESSAGE_KEY_CUSTOM1_VALUE))) {
+    s_config.custom1_value = clamp_pct(tuple_int(t));
+    custom_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_CUSTOM1_ICON))) {
+    set_enum(&s_config.custom1_icon, tuple_int(t), CUSTOM_ICON_COUNT);
+    custom_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_CUSTOM2_VALUE))) {
+    s_config.custom2_value = clamp_pct(tuple_int(t));
+    custom_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_CUSTOM2_ICON))) {
+    set_enum(&s_config.custom2_icon, tuple_int(t), CUSTOM_ICON_COUNT);
+    custom_changed = true;
+  }
+
   if (settings_changed) {
     config_save();
   }
   if (weather_changed) {
     weather_save();
+  }
+  if (custom_changed) {
+    custom_save();
   }
   if (s_change_cb) {
     s_change_cb();

@@ -23,6 +23,11 @@
 #define PERSIST_PROGRESS_INFO_MODE 23  // replaces the bool at PERSIST_PROGRESS_INFO
 #define PERSIST_ACCENT_2_ENABLE 24
 #define PERSIST_ACCENT_COLOR_2  25
+#define PERSIST_CUSTOM1_VALUE   26
+#define PERSIST_CUSTOM1_ICON    27
+#define PERSIST_CUSTOM2_VALUE   28
+#define PERSIST_CUSTOM2_ICON    29
+#define PERSIST_CUSTOM_TIME     30  // shared staleness timestamp for both custom slots
 
 // Layout modes: hours above minutes with a horizontal bar between them, hours
 // beside minutes split by a vertical bar, or hours beside minutes framed by two
@@ -46,12 +51,32 @@
 #define PROGRESS_INFO_BOTH  2
 #define PROGRESS_INFO_COUNT 3
 
-// Progressbar types.
+// Progressbar types. CUSTOM_1/2 are user-defined metrics fetched by the phone
+// from a URL the user configures (see index.js fetchCustom) — value + icon
+// arrive over AppMessage, independent array slots so either can sit in either
+// bar position.
 #define PROGRESS_STEPS     0
 #define PROGRESS_BATTERY   1
 #define PROGRESS_CALORIES  2
 #define PROGRESS_DISTANCE  3
-#define PROGRESS_COUNT     4
+#define PROGRESS_CUSTOM_1  4
+#define PROGRESS_CUSTOM_2  5
+#define PROGRESS_COUNT     6
+
+// Icon shown for a custom metric, picked phone-side from the JSON item's
+// "name" field (see index.js customIconFor): a recognized Claude Code usage
+// name gets its matching icon, anything else falls back to a generic gauge.
+#define CUSTOM_ICON_GAUGE           0
+#define CUSTOM_ICON_CLAUDE_SESSION  1
+#define CUSTOM_ICON_CLAUDE_WEEK     2
+#define CUSTOM_ICON_COUNT           3
+
+// Sentinel meaning "no custom data received yet" (or the stored value expired).
+#define CUSTOM_VALUE_NONE  -1
+
+// Stored custom values older than this are discarded on load and treated as
+// absent, same reasoning as WEATHER_MAX_AGE_S.
+#define CUSTOM_MAX_AGE_S  (3 * 60 * 60)
 
 // Temperature units.
 #define TEMP_CELSIUS     0
@@ -136,6 +161,10 @@ typedef struct {
   bool   weather_accent;  // true = draw weather icon in the accent color
   int    weather_temp;       // WEATHER_TEMP_NONE until first fetch
   int    weather_condition;  // WEATHER_SUN / WEATHER_CLOUD / WEATHER_RAIN
+  int    custom1_value;      // CUSTOM_VALUE_NONE until first fetch, else 0-100
+  int    custom1_icon;       // CUSTOM_ICON_*
+  int    custom2_value;      // CUSTOM_VALUE_NONE until first fetch, else 0-100
+  int    custom2_icon;       // CUSTOM_ICON_*
 } DemiConfig;
 
 // Returns a pointer to the singleton config (valid after config_load).

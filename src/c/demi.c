@@ -18,6 +18,7 @@ static GDrawCommandImage *s_img_shoe, *s_img_battery, *s_img_flame, *s_img_runne
 static GDrawCommandImage *s_img_sun, *s_img_partly, *s_img_cloud;
 static GDrawCommandImage *s_img_lrain, *s_img_hrain, *s_img_lsnow, *s_img_hsnow;
 static GDrawCommandImage *s_img_quiet, *s_img_bt_off;  // status-row icons
+static GDrawCommandImage *s_img_gauge, *s_img_claude_session, *s_img_claude_week;  // custom-metric icons
 
 // Hidden during a Timeline Quick View slide to reduce clutter.
 static bool s_peek_animating = false;
@@ -87,6 +88,17 @@ static void format_k(int value, char *buf, size_t len) {
   }
 }
 
+// Maps a custom-metric icon setting (chosen phone-side from the JSON item's
+// "name") to its PDC image.
+static GDrawCommandImage *custom_icon_image(int icon) {
+  switch (icon) {
+    case CUSTOM_ICON_CLAUDE_SESSION: return s_img_claude_session;
+    case CUSTOM_ICON_CLAUDE_WEEK:    return s_img_claude_week;
+    case CUSTOM_ICON_GAUGE:
+    default:                         return s_img_gauge;
+  }
+}
+
 // Computes a progress metric: percentage, label, icon and fill color. The type
 // is passed in rather than read from the config, so the dual layout can render
 // two different metrics.
@@ -110,6 +122,22 @@ static void compute_progress(int type, GColor accent, int *pct, char *buf, size_
       format_k(s_dist_m, buf, len);
       *icon = s_img_runner;
       break;
+    case PROGRESS_CUSTOM_1: {
+      DemiConfig *cfg = config_get();
+      int v = cfg->custom1_value;
+      *pct = (v == CUSTOM_VALUE_NONE) ? 0 : v;
+      if (v == CUSTOM_VALUE_NONE) { snprintf(buf, len, "--"); } else { snprintf(buf, len, "%d%%", v); }
+      *icon = custom_icon_image(cfg->custom1_icon);
+      break;
+    }
+    case PROGRESS_CUSTOM_2: {
+      DemiConfig *cfg = config_get();
+      int v = cfg->custom2_value;
+      *pct = (v == CUSTOM_VALUE_NONE) ? 0 : v;
+      if (v == CUSTOM_VALUE_NONE) { snprintf(buf, len, "--"); } else { snprintf(buf, len, "%d%%", v); }
+      *icon = custom_icon_image(cfg->custom2_icon);
+      break;
+    }
     case PROGRESS_STEPS:
     default:
       *pct = s_steps > 10000 ? 100 : s_steps * 100 / 10000;
@@ -807,6 +835,9 @@ static void window_load(Window *window) {
   s_img_hsnow    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_HEAVY_SNOW);
   s_img_quiet    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_QUIET);
   s_img_bt_off   = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_BT_OFF);
+  s_img_gauge          = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_GAUGE);
+  s_img_claude_session = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_CLAUDE_SESSION);
+  s_img_claude_week    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_CLAUDE_WEEK);
 
   // Layers (frames set by apply_layout below). The status layer is added last so
   // its corner icons overlay the clock.
@@ -879,6 +910,9 @@ static void window_unload(Window *window) {
   gdraw_command_image_destroy(s_img_hsnow);
   gdraw_command_image_destroy(s_img_quiet);
   gdraw_command_image_destroy(s_img_bt_off);
+  gdraw_command_image_destroy(s_img_gauge);
+  gdraw_command_image_destroy(s_img_claude_session);
+  gdraw_command_image_destroy(s_img_claude_week);
 }
 
 // ---- app lifecycle --------------------------------------------------------
