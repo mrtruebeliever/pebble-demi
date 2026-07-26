@@ -724,13 +724,14 @@ static void update_time(struct tm *tm) {
   // Locale-independent weekday/month abbreviations per configured language
   // (ASCII only — the small font's characterRegex excludes accented glyphs).
   static const char *const WDAY[LANG_COUNT][7] = {
-    { "ZO", "MA", "DI", "WO", "DO", "VR", "ZA" },  // NL
     { "SU", "MO", "TU", "WE", "TH", "FR", "SA" },  // EN
-    { "SO", "MO", "DI", "MI", "DO", "FR", "SA" },  // DE
+    { "ZO", "MA", "DI", "WO", "DO", "VR", "ZA" },  // NL
     { "DI", "LU", "MA", "ME", "JE", "VE", "SA" },  // FR
+    { "SO", "MO", "DI", "MI", "DO", "FR", "SA" },  // DE
+    { "DO", "LU", "MA", "MI", "JU", "VI", "SA" },  // ES
   };
   int lang = config_get()->language;
-  if (lang < 0 || lang >= LANG_COUNT) lang = LANG_NL;
+  if (lang < 0 || lang >= LANG_COUNT) lang = LANG_EN;
   strncpy(s_day, WDAY[lang][tm->tm_wday % 7], sizeof(s_day) - 1);
   s_day[sizeof(s_day) - 1] = 0;
   s_mday = tm->tm_mday;

@@ -8,7 +8,7 @@
         "type": "color",
         "messageKey": "ACCENT_COLOR",
         "label": "Accentkleur",
-        "defaultValue": "00b894",
+        "defaultValue": "00ff7f",
         "sunlight": false,
         "layout": [
           ["00b894", "00ff7f", "00ffff"],
@@ -21,7 +21,7 @@
         "type": "select",
         "messageKey": "CLOCK_SCHEME",
         "label": "Kleuren uren/minuten",
-        "defaultValue": "0",
+        "defaultValue": "2",
         "options": [
           { "label": "Wit / donkergrijs", "value": "0" },
           { "label": "Wit / wit", "value": "1" },
@@ -161,13 +161,15 @@
       {
         "type": "select",
         "messageKey": "LANGUAGE",
-        "label": "Taal datum",
-        "defaultValue": "0",
+        "label": "Taal datum / Date language",
+        "defaultValue": "255",
         "options": [
-          { "label": "Nederlands", "value": "0" },
-          { "label": "English", "value": "1" },
-          { "label": "Deutsch", "value": "2" },
-          { "label": "Français", "value": "3" }
+          { "label": "Automatisch (horlogetaal) / Automatic", "value": "255" },
+          { "label": "English", "value": "0" },
+          { "label": "Nederlands", "value": "1" },
+          { "label": "Français", "value": "2" },
+          { "label": "Deutsch", "value": "3" },
+          { "label": "Español", "value": "4" }
         ]
       }
     ]

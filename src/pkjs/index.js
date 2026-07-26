@@ -1,7 +1,19 @@
 var Clay = require('pebble-clay');
 var clayConfig = require('./config.json');
-var clay = new Clay(clayConfig);
+var configI18n = require('./config_i18n');
 var keys = require('message_keys');
+
+// The settings page follows the language the user picked for the watch (or, on
+// LANG_AUTO, the watch's own locale as reported by the platform). The page was
+// Dutch-only, which an English user reached straight after an English watch UI.
+function settingsLang() {
+  var v = parseInt(localStorage.getItem('LANG'), 10);
+  // Anything other than an explicit Nederlands pick renders the page in
+  // English, including LANG_AUTO (255) and a first run with nothing stored.
+  return v === 1 ? 1 : 0;
+}
+
+var clay = new Clay(configI18n.buildConfig(clayConfig, settingsLang()));
 
 var WEATHER_REFRESH_MS = 30 * 60 * 1000;  // 30 minutes
 var CUSTOM_REFRESH_MS = 3 * 60 * 1000;    // 3 minutes — below the gist CDN's own 5-min cache floor, so shorter gains little
@@ -182,6 +194,8 @@ Pebble.addEventListener('webviewclosed', function(e) {
    keys.LANGUAGE, keys.CLOCK_SCHEME
   ].forEach(function(key) { toInt(dict, key); });
   localStorage.setItem('TEMP_UNIT', String(dict[keys.TEMP_UNIT] || 0));
+  // Remember the language so the settings page itself opens in it next time.
+  localStorage.setItem('LANG', String(dict[keys.LANGUAGE]));
 
   // The custom-metric url is phone-only: save it locally and drop it from the
   // dict so it's never transmitted to the watch over AppMessage.

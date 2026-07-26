@@ -36,6 +36,31 @@ static int32_t tuple_int(const Tuple *t) {
 
 // Applies an enum setting only when it falls inside [0, count). A malformed or
 // unknown value leaves the previous setting alone rather than blanking the UI.
+// Maps the watch's system locale (e.g. "en_US", "nl_NL") to a UI language.
+// Anything this face does not carry falls back to English.
+static int detect_locale_lang(void) {
+  const char *loc = i18n_get_system_locale();
+  if (loc && loc[0] && loc[1]) {
+    if (loc[0] == 'n' && loc[1] == 'l') return LANG_NL;
+    if (loc[0] == 'f' && loc[1] == 'r') return LANG_FR;
+    if (loc[0] == 'd' && loc[1] == 'e') return LANG_DE;
+    if (loc[0] == 'e' && loc[1] == 's') return LANG_ES;
+  }
+  return LANG_EN;
+}
+
+// The user's raw choice, which may be LANG_AUTO. s_config.language always holds
+// a concrete index for drawing, so the preference has to be kept separately --
+// otherwise the first config_save() would write the resolved language back and
+// silently pin a watch that was set to follow its locale.
+static int s_lang_pref = LANG_AUTO;
+
+// LANG_AUTO means "follow the watch"; anything else is the user's own pick.
+static void set_lang(int *dst, int32_t v) {
+  s_lang_pref = (int)v;
+  *dst = (v >= 0 && v < LANG_COUNT) ? (int)v : detect_locale_lang();
+}
+
 static void set_enum(int *dst, int32_t v, int count) {
   if (v >= 0 && v < count) {
     *dst = (int)v;
@@ -70,7 +95,7 @@ void config_load(void) {
   s_config.widget_right      = DEFAULT_WIDGET_RIGHT;
   s_config.battery_pct       = DEFAULT_BATTERY_PCT;
   s_config.temp_unit         = DEFAULT_TEMP_UNIT;
-  s_config.language          = DEFAULT_LANGUAGE;
+  s_config.language          = LANG_EN;   // resolved by set_lang() below
   s_config.clock_scheme      = DEFAULT_CLOCK_SCHEME;
   s_config.clock_24h         = DEFAULT_CLOCK_24H;
   s_config.weather_accent    = DEFAULT_WEATHER_ACCENT;
@@ -151,9 +176,11 @@ void config_load(void) {
   if (persist_exists(PERSIST_TEMP_UNIT)) {
     set_enum(&s_config.temp_unit, persist_read_int(PERSIST_TEMP_UNIT), TEMP_UNIT_COUNT);
   }
-  if (persist_exists(PERSIST_LANGUAGE)) {
-    set_enum(&s_config.language, persist_read_int(PERSIST_LANGUAGE), LANG_COUNT);
-  }
+  // LANG_AUTO (the default) and any stale out-of-range value both resolve to
+  // the watch's own locale rather than to a fixed language.
+  set_lang(&s_config.language,
+           persist_exists(PERSIST_LANGUAGE) ? persist_read_int(PERSIST_LANGUAGE)
+                                            : LANG_AUTO);
   if (persist_exists(PERSIST_CLOCK_SCHEME)) {
     set_enum(&s_config.clock_scheme, persist_read_int(PERSIST_CLOCK_SCHEME), CLOCK_SCHEME_COUNT);
   }
@@ -184,7 +211,7 @@ void config_save(void) {
   persist_write_int(PERSIST_WIDGET_RIGHT, s_config.widget_right);
   persist_write_bool(PERSIST_BATTERY_PCT, s_config.battery_pct);
   persist_write_int(PERSIST_TEMP_UNIT, s_config.temp_unit);
-  persist_write_int(PERSIST_LANGUAGE, s_config.language);
+  persist_write_int(PERSIST_LANGUAGE, s_lang_pref);   // keep AUTO as AUTO
   persist_write_int(PERSIST_CLOCK_SCHEME, s_config.clock_scheme);
   persist_write_bool(PERSIST_CLOCK_24H, s_config.clock_24h);
   persist_write_bool(PERSIST_WEATHER_ACCENT, s_config.weather_accent);
@@ -268,7 +295,7 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_LANGUAGE))) {
-    set_enum(&s_config.language, tuple_int(t), LANG_COUNT);
+    set_lang(&s_config.language, tuple_int(t));
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_CLOCK_SCHEME))) {

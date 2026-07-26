@@ -96,11 +96,18 @@
 #define CLOCK_SCHEME_COUNT 8
 
 // Languages for the weekday/month abbreviations.
-#define LANG_NL  0
-#define LANG_EN  1
-#define LANG_DE  2
-#define LANG_FR  3
-#define LANG_COUNT 4
+// English is index 0 and the fallback: a watch set to a language this face
+// does not carry gets English rather than Dutch. Index must match the phone
+// side (src/pkjs/config.json LANGUAGE values).
+#define LANG_EN  0
+#define LANG_NL  1
+#define LANG_FR  2
+#define LANG_DE  3
+#define LANG_ES  4
+#define LANG_COUNT 5
+
+// Stored/sent for "follow the watch's own locale".
+#define LANG_AUTO 255
 
 // Weather conditions (icon selector), as sent by the JS WMO mapping.
 #define WEATHER_SUN          0
@@ -126,8 +133,12 @@
 // Second bar (dual layout only): a different metric to the first by default.
 #define DEFAULT_PROGRESS_TYPE_2 PROGRESS_BATTERY
 #define DEFAULT_TEMP_UNIT      TEMP_CELSIUS
-#define DEFAULT_LANGUAGE       LANG_NL
-#define DEFAULT_CLOCK_SCHEME   CLOCK_SCHEME_WHITE_GRAY
+#define DEFAULT_LANGUAGE       LANG_AUTO   // resolved in config_load()
+// White hours over light-gray minutes, not dark-gray: the hour/minute hierarchy
+// still reads, but the minutes stay legible at a glance, which dark-gray on
+// black does not. This is the default every new user sees before touching a
+// setting, so it follows the note above rather than contradicting it.
+#define DEFAULT_CLOCK_SCHEME   CLOCK_SCHEME_WHITE_LIGHT
 #define DEFAULT_CLOCK_24H      true   // NL convention; 12h + AM/PM is opt-in
 #define DEFAULT_WEATHER_ACCENT false  // keep per-condition weather colors
 #define DEFAULT_WIDGET_LEFT    WIDGET_DATE
