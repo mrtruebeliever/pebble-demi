@@ -31,6 +31,25 @@ Other notes:
 - On an emulator bootloop/hang: `pebble wipe` (do **not** `kill -9` qemu — that corrupts
   state into a bootloop).
 
+### Emulator freezes on WSL2
+
+Under WSL2, `qemu-pebble`'s emulated timer interrupts stop firing after a minute or
+two: the clock freezes, app timers die, and installs and screenshots time out, while
+buttons and rendering still appear to work. Running qemu with `-icount` avoids it, but
+pebble-tool has no hook for extra qemu arguments — only `PEBBLE_QEMU_PATH`, which points
+at the binary. `tools/qemu-icount-wrapper.sh` stands in for that binary and adds the flag:
+
+```bash
+export PEBBLE_QEMU_PATH="$PWD/tools/qemu-icount-wrapper.sh"
+pebble install --emulator emery
+```
+
+Export it in **every** shell that starts the emulator. The wrapper finds the SDK under
+`~/.pebble-sdk` (override with `PEBBLE_SDK_HOME`). If the emulator will not even boot —
+frozen progress bar, every app failing to install — `~/.pebble-sdk/<version>/emery/
+qemu_spi_flash.bin` is corrupt; back it up (it holds every app's emulator data) and
+delete it, and the next install recreates it.
+
 To install on a real Pebble Time 2, see the **Pebble cloud install** flow (Dev Connect +
 `pebble install --cloudpebble`).
 
