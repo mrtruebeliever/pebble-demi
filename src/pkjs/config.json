@@ -44,7 +44,19 @@
           { "label": "Horizontaal (twee bars)", "value": "2" }
         ]
       },
-      { "type": "toggle", "messageKey": "CLOCK_24H", "label": "24-uurs klok", "defaultValue": true }
+      { "type": "toggle", "messageKey": "CLOCK_24H", "label": "24-uurs klok", "defaultValue": true },
+      {
+        "type": "select",
+        "messageKey": "TAP_MODE",
+        "label": "Tik op het horloge toont",
+        "description": "Een tik op de pols vervangt de widgetrij vijf seconden lang.",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Niets", "value": "0" },
+          { "label": "Seconden", "value": "1" },
+          { "label": "Volledige datum", "value": "2" }
+        ]
+      }
     ]
   },
   {
@@ -62,7 +74,12 @@
           { "label": "Calorieën", "value": "2" },
           { "label": "Afstand", "value": "3" },
           { "label": "Aangepast 1 (JSON-url)", "value": "4" },
-          { "label": "Aangepast 2 (JSON-url)", "value": "5" }
+          { "label": "Aangepast 2 (JSON-url)", "value": "5" },
+          { "label": "Daglicht", "value": "6" },
+          { "label": "Dag verstreken", "value": "7" },
+          { "label": "Week verstreken", "value": "8" },
+          { "label": "Maand verstreken", "value": "9" },
+          { "label": "Jaar verstreken", "value": "10" }
         ]
       },
       {
@@ -76,7 +93,12 @@
           { "label": "Calorieën", "value": "2" },
           { "label": "Afstand", "value": "3" },
           { "label": "Aangepast 1 (JSON-url)", "value": "4" },
-          { "label": "Aangepast 2 (JSON-url)", "value": "5" }
+          { "label": "Aangepast 2 (JSON-url)", "value": "5" },
+          { "label": "Daglicht", "value": "6" },
+          { "label": "Dag verstreken", "value": "7" },
+          { "label": "Week verstreken", "value": "8" },
+          { "label": "Maand verstreken", "value": "9" },
+          { "label": "Jaar verstreken", "value": "10" }
         ]
       },
       {
@@ -91,6 +113,8 @@
         ]
       },
       { "type": "toggle", "messageKey": "PROGRESS_SWAP", "label": "Icoon en waarde omwisselen", "defaultValue": false },
+      { "type": "toggle", "messageKey": "TAP_BARS", "label": "Toon icoon en waarde bij tik", "description": "Als je hierboven \"Niets\" of \"Alleen icoon\" koos, laat een tik op de pols de verborgen details vijf seconden zien.", "defaultValue": false },
+      { "type": "toggle", "messageKey": "PACE_MARK", "label": "Toon mijn normale tempo", "description": "Zet een streepje op de bar waar je op dit tijdstip meestal staat. Alleen bij stappen, calorieën en afstand.", "defaultValue": false },
       { "type": "toggle", "messageKey": "ACCENT_2_ENABLE", "label": "Tweede bar eigen kleur", "defaultValue": false },
       {
         "type": "color",
@@ -110,6 +134,52 @@
   {
     "type": "section",
     "items": [
+      { "type": "heading", "defaultValue": "Doelen" },
+      { "type": "text", "defaultValue": "Waar de bar 100% bereikt. Vul <code>0</code> in om je eigen daggemiddelde als doel te gebruiken." },
+      {
+        "type": "input",
+        "messageKey": "GOAL_STEPS",
+        "label": "Stappendoel",
+        "defaultValue": "10000",
+        "attributes": { "placeholder": "10000", "type": "number", "min": "0" }
+      },
+      {
+        "type": "input",
+        "messageKey": "GOAL_KCAL",
+        "label": "Caloriedoel",
+        "defaultValue": "600",
+        "attributes": { "placeholder": "600", "type": "number", "min": "0" }
+      },
+      {
+        "type": "select",
+        "messageKey": "DIST_UNIT",
+        "label": "Eenheid afstand",
+        "defaultValue": "255",
+        "options": [
+          { "label": "Automatisch (horloge-instelling)", "value": "255" },
+          { "label": "Kilometers", "value": "0" },
+          { "label": "Mijlen", "value": "1" }
+        ]
+      },
+      {
+        "type": "input",
+        "messageKey": "GOAL_DIST_KM",
+        "label": "Afstandsdoel (km)",
+        "defaultValue": "5",
+        "attributes": { "placeholder": "5", "type": "number", "min": "0", "step": "0.1" }
+      },
+      {
+        "type": "input",
+        "messageKey": "GOAL_DIST_MI",
+        "label": "Afstandsdoel (mijl)",
+        "defaultValue": "3",
+        "attributes": { "placeholder": "3", "type": "number", "min": "0", "step": "0.1" }
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
       { "type": "heading", "defaultValue": "Widgets onderaan" },
       { "type": "text", "defaultValue": "Kies per positie welke widget verschijnt (max. 3)." },
       {
@@ -122,7 +192,8 @@
           { "label": "Datum", "value": "1" },
           { "label": "Weer", "value": "2" },
           { "label": "Batterij", "value": "3" },
-          { "label": "Hartslag", "value": "4" }
+          { "label": "Hartslag", "value": "4" },
+          { "label": "Zon op/onder", "value": "5" }
         ]
       },
       {
@@ -135,7 +206,8 @@
           { "label": "Datum", "value": "1" },
           { "label": "Weer", "value": "2" },
           { "label": "Batterij", "value": "3" },
-          { "label": "Hartslag", "value": "4" }
+          { "label": "Hartslag", "value": "4" },
+          { "label": "Zon op/onder", "value": "5" }
         ]
       },
       {
@@ -148,7 +220,8 @@
           { "label": "Datum", "value": "1" },
           { "label": "Weer", "value": "2" },
           { "label": "Batterij", "value": "3" },
-          { "label": "Hartslag", "value": "4" }
+          { "label": "Hartslag", "value": "4" },
+          { "label": "Zon op/onder", "value": "5" }
         ]
       },
       { "type": "toggle", "messageKey": "BATTERY_PCT", "label": "Toon batterijpercentage", "defaultValue": true }
@@ -161,10 +234,10 @@
       {
         "type": "select",
         "messageKey": "LANGUAGE",
-        "label": "Taal datum / Date language",
+        "label": "Taal datum",
         "defaultValue": "255",
         "options": [
-          { "label": "Automatisch (horlogetaal) / Automatic", "value": "255" },
+          { "label": "Automatisch (horlogetaal)", "value": "255" },
           { "label": "English", "value": "0" },
           { "label": "Nederlands", "value": "1" },
           { "label": "Français", "value": "2" },
@@ -179,13 +252,10 @@
     "items": [
       { "type": "heading", "defaultValue": "Aangepast (JSON-url)" },
       {
-        "type": "text",
-        "defaultValue": "Voor de \"Aangepast 1/2\"-bars: een url die JSON teruggeeft in de vorm <code>{\"items\":[{\"name\":\"...\",\"value\":42}]}</code> (value 0-100, item 0 → Aangepast 1, item 1 → Aangepast 2). De url zelf blijft op de telefoon en wordt nooit naar het horloge gestuurd — alleen de opgehaalde percentages."
-      },
-      {
         "type": "input",
         "messageKey": "CUSTOM_URL",
         "label": "URL",
+        "description": "Voor de \"Aangepast 1/2\"-bars: een url die JSON teruggeeft in de vorm <code>{\"items\":[{\"name\":\"...\",\"value\":42}]}</code> (value 0-100, item 0 → Aangepast 1, item 1 → Aangepast 2). De url zelf blijft op de telefoon en wordt nooit naar het horloge gestuurd — alleen de opgehaalde percentages.",
         "defaultValue": "",
         "attributes": { "placeholder": "https://...", "type": "url" }
       }

@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.6.0
+
+- **Sunrise and sunset.** A new bottom-row widget shows whichever comes next —
+  the sunrise time before dawn, the sunset time after it — using PebbleOS's own
+  sunrise and sunset icons, a half sun over a horizon with the arrow built in.
+  They read at a glance against the weather slot's bare sun. A matching **Daylight** progress bar tracks how much of the day
+  between them has gone, labelled with the time still left (`3h15`). Both come
+  from the same Open-Meteo request the weather already used: no second fetch,
+  no API key. Sunrise and sunset are kept for a full day rather than the
+  weather's three hours, since this morning's sunrise is still correct tonight.
+- **Your own goals.** The step, calorie and distance bars no longer reach 100%
+  at a fixed 10000 / 600 / 5000 — each has its own setting. Enter `0` and the
+  watch uses your own daily average from its health history instead, falling
+  back to the old fixed target when there is no history to average yet.
+- **Usual-pace mark** (off by default) puts a mark on the bar where you
+  normally stand at this time of day, so the fill can be read against it.
+- The **day-elapsed bar carries sunrise and sunset marks**, so you can see at a
+  glance where you stand within the daylight rather than just within the clock.
+  Not on the daylight bar: there they would be its two ends by definition. Marks
+  are drawn black over the accent fill and light grey over the bare track, so
+  they stay legible wherever they land.
+- **Metric or imperial.** Distance follows the watch's own measurement system
+  by default, and can be pinned to kilometres or miles. The settings page shows
+  the goal field in the matching unit.
+- **Elapsed-time bars.** Four new progress-bar sources — day, week, month and
+  year — computed on the watch, so they need neither the phone nor a sensor.
+  The day bar carries a clock glyph; week, month and year each draw the same
+  calendar box the date widget uses, with the period's initial inside it —
+  `W`/`M`/`J` in Dutch, `W`/`M`/`Y` in English, `S`/`M`/`A` in French and
+  Spanish. PebbleOS has no week/month/year icons, and one shared calendar icon
+  could not tell the three apart.
+- **Tap to reveal** (off by default): a tap on the wrist replaces the widget
+  row for five seconds with the seconds, or with the full date
+  (`TH 13 AUG 2026`) in your chosen language. A second, independent option lets
+  the same tap expand the progress bars to icon + value — so a face kept
+  deliberately bare still gives up its numbers on demand. Either option on its
+  own is enough for a tap to do something; with both on, a tap reveals both.
+- The settings page is now translated into **French, German and Spanish** as
+  well as English, matching the five languages the watch face already spoke.
+  Its explanatory paragraphs were previously left in Dutch on every non-Dutch
+  page; they are now translated too. The language picker itself no longer
+  carries a bilingual "Taal datum / Date language" label — that was there to
+  stay findable back when the page was Dutch-only, and now it simply follows
+  the page's language like everything else.
+- The custom-JSON help text moved from a full-width paragraph to the url
+  field's own description, so it renders small and grey like the other hints
+  rather than dominating the section.
+- Carried over from before the 1.5.0 release and never given a version of its
+  own: Spanish date abbreviations, a "follow the watch's language" option, the
+  translated settings page, a more legible default clock scheme (white hours
+  over light-grey minutes rather than dark-grey), and two settings-page
+  defaults that disagreed with the watch.
+- The AppMessage inbox grew from 256 to 512 bytes. The settings dict was
+  already close to the old limit, and the new options would have pushed a full
+  save past it — which is dropped silently apart from a log line.
+
 ## 1.5.0
 
 - **Custom JSON progress bars.** Two new progress-bar sources, "Custom 1" and

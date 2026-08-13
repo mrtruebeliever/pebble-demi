@@ -28,6 +28,15 @@
 #define PERSIST_CUSTOM2_VALUE   28
 #define PERSIST_CUSTOM2_ICON    29
 #define PERSIST_CUSTOM_TIME     30  // shared staleness timestamp for both custom slots
+#define PERSIST_SUNRISE         31  // minutes since local midnight
+#define PERSIST_SUNSET          32
+#define PERSIST_GOAL_STEPS      33
+#define PERSIST_GOAL_KCAL       34
+#define PERSIST_GOAL_DIST       35  // always meters, whatever unit the user typed
+#define PERSIST_DIST_UNIT       36
+#define PERSIST_PACE_MARK       37
+#define PERSIST_TAP_MODE        38
+#define PERSIST_TAP_BARS        39
 
 // Layout modes: hours above minutes with a horizontal bar between them, hours
 // beside minutes split by a vertical bar, or hours beside minutes framed by two
@@ -43,7 +52,8 @@
 #define WIDGET_WEATHER  2
 #define WIDGET_BATTERY  3
 #define WIDGET_HEART    4
-#define WIDGET_COUNT    5
+#define WIDGET_SUN      5  // next sunrise or sunset, whichever comes first
+#define WIDGET_COUNT    6
 
 // How much detail sits beside the progressbar.
 #define PROGRESS_INFO_NONE  0
@@ -54,14 +64,21 @@
 // Progressbar types. CUSTOM_1/2 are user-defined metrics fetched by the phone
 // from a URL the user configures (see index.js fetchCustom) — value + icon
 // arrive over AppMessage, independent array slots so either can sit in either
-// bar position.
+// bar position. DAYLIGHT needs the phone's sunrise/sunset; the four calendar
+// types need nothing at all and always have a value.
+// New types are appended so a persisted setting keeps meaning what it did.
 #define PROGRESS_STEPS     0
 #define PROGRESS_BATTERY   1
 #define PROGRESS_CALORIES  2
 #define PROGRESS_DISTANCE  3
 #define PROGRESS_CUSTOM_1  4
 #define PROGRESS_CUSTOM_2  5
-#define PROGRESS_COUNT     6
+#define PROGRESS_DAYLIGHT  6
+#define PROGRESS_DAY       7
+#define PROGRESS_WEEK      8
+#define PROGRESS_MONTH     9
+#define PROGRESS_YEAR      10
+#define PROGRESS_COUNT     11
 
 // Icon shown for a custom metric, picked phone-side from the JSON item's
 // "name" field (see index.js customIconFor): a recognized Claude Code usage
@@ -82,6 +99,49 @@
 #define TEMP_CELSIUS     0
 #define TEMP_FAHRENHEIT  1
 #define TEMP_UNIT_COUNT  2
+
+// Distance units for the distance metric. Health always reports meters; this
+// only decides how they are rendered and how a typed goal was meant.
+#define DIST_KM          0
+#define DIST_MILES       1
+#define DIST_UNIT_COUNT  2
+
+// "Follow the watch's own measurement system", resolved through
+// health_service_get_measurement_system_for_display(). Same shape as LANG_AUTO.
+#define DIST_AUTO        255
+
+#define METERS_PER_MILE  1609
+
+// How the watch reacts to a wrist tap.
+#define TAP_OFF      0
+#define TAP_SECONDS  1
+#define TAP_DATE     2
+#define TAP_COUNT    3
+
+// Whether a tap also expands the progressbars to icon + value, for wearers who
+// keep the bars bare but still want the numbers on demand.
+#define DEFAULT_TAP_BARS  false
+
+// How long a tap reveal stays on screen.
+#define TAP_REVEAL_MS  5000
+
+// A goal of 0 means "use my own daily average" rather than a fixed target.
+#define GOAL_AVERAGE  0
+
+// Fallbacks when a goal is set to GOAL_AVERAGE but the watch has no history
+// to average yet. These are the targets Demi used for every wearer before
+// goals were configurable.
+#define FALLBACK_GOAL_STEPS   10000
+#define FALLBACK_GOAL_KCAL    600
+#define FALLBACK_GOAL_DIST_M  5000
+
+// Sentinel meaning "no sunrise/sunset received yet" (or the stored pair expired).
+#define SUN_TIME_NONE  -1
+
+// Sunrise and sunset stay true for the whole day, so they outlive the weather
+// they arrive with: a reading from this morning is still correct tonight, a
+// temperature from this morning is not.
+#define SUN_MAX_AGE_S  (26 * 60 * 60)
 
 // Clock color schemes (hour color / minute color). The high-contrast variants
 // (white/white, white/light) read best on the e-paper display.
@@ -150,6 +210,15 @@
 #define DEFAULT_PROGRESS_SWAP  false  // icon leads, value trails
 #define DEFAULT_ACCENT_2_ENABLE false   // second bar follows the main accent
 #define DEFAULT_ACCENT_COLOR_2  0x00FFFF  // GColorCyan, only once enabled
+// The goals Demi used to hardcode, now merely the starting point.
+#define DEFAULT_GOAL_STEPS     FALLBACK_GOAL_STEPS
+#define DEFAULT_GOAL_KCAL      FALLBACK_GOAL_KCAL
+#define DEFAULT_GOAL_DIST      FALLBACK_GOAL_DIST_M
+#define DEFAULT_DIST_UNIT      DIST_AUTO  // resolved in config_load()
+#define DEFAULT_PACE_MARK      false  // opt-in: a second marker on the track
+// Off by default: tapping costs nothing, but an unexpected reveal on every
+// knock is worse than a feature the user never asked for.
+#define DEFAULT_TAP_MODE       TAP_OFF
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
@@ -170,8 +239,17 @@ typedef struct {
   int    clock_scheme;
   bool   clock_24h;       // true = 24h display, false = 12h with AM/PM
   bool   weather_accent;  // true = draw weather icon in the accent color
+  int    dist_unit;      // DIST_KM / DIST_MILES, already resolved from DIST_AUTO
+  int    goal_steps;     // GOAL_AVERAGE (0) = use the wearer's own daily average
+  int    goal_kcal;
+  int    goal_dist_m;    // meters, whichever unit the user typed it in
+  bool   pace_mark;      // draw "where you normally are by now" on the track
+  int    tap_mode;       // TAP_OFF / TAP_SECONDS / TAP_DATE
+  bool   tap_bars;       // a tap also reveals the bars' icon + value
   int    weather_temp;       // WEATHER_TEMP_NONE until first fetch
   int    weather_condition;  // WEATHER_SUN / WEATHER_CLOUD / WEATHER_RAIN
+  int    sunrise;            // minutes since local midnight, SUN_TIME_NONE if unknown
+  int    sunset;
   int    custom1_value;      // CUSTOM_VALUE_NONE until first fetch, else 0-100
   int    custom1_icon;       // CUSTOM_ICON_*
   int    custom2_value;      // CUSTOM_VALUE_NONE until first fetch, else 0-100

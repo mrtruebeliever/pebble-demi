@@ -19,6 +19,8 @@ static GDrawCommandImage *s_img_sun, *s_img_partly, *s_img_cloud;
 static GDrawCommandImage *s_img_lrain, *s_img_hrain, *s_img_lsnow, *s_img_hsnow;
 static GDrawCommandImage *s_img_quiet, *s_img_bt_off;  // status-row icons
 static GDrawCommandImage *s_img_gauge, *s_img_claude_session, *s_img_claude_week;  // custom-metric icons
+static GDrawCommandImage *s_img_sunrise, *s_img_sunset;      // next-sun-event icons
+static GDrawCommandImage *s_img_duration;                    // day-elapsed bar icon
 
 // Hidden during a Timeline Quick View slide to reduce clutter.
 static bool s_peek_animating = false;
@@ -29,6 +31,12 @@ static char s_minutes[4];
 static char s_ampm[4];   // "AM"/"PM" in 12h mode; empty in 24h mode
 static char s_day[8];
 static int  s_mday;
+
+// Tap reveal: the bottom row is replaced by one of these for a few seconds.
+static char s_full_date[20];   // "WE 13 AUG 2026"
+static char s_seconds[4];      // ":07"
+static bool s_revealing = false;
+static AppTimer *s_reveal_timer = NULL;
 
 // Health + battery snapshot.
 static int  s_steps    = 0;
@@ -88,6 +96,189 @@ static void format_k(int value, char *buf, size_t len) {
   }
 }
 
+// Formats a distance held in meters for display. Health always reports meters;
+// the wearer's measurement system only decides what they read here, so the
+// conversion lives at the point of drawing and nowhere else.
+static void format_distance(int meters, char *buf, size_t len) {
+  if (config_get()->dist_unit == DIST_MILES) {
+    // Tenths of a mile, so a short walk isn't just "0". No "mi" suffix: the
+    // value only gets ~44px beside the track, which "2.0mi" overflows — and
+    // the metric case is just as bare once past 10k ("12k", "950"). The runner
+    // icon says what the number is, and the unit is the wearer's own setting.
+    int tenths = (meters * 10 + METERS_PER_MILE / 2) / METERS_PER_MILE;
+    if (tenths >= 100) {
+      snprintf(buf, len, "%d", tenths / 10);   // 10 miles and up: drop the decimal
+    } else {
+      snprintf(buf, len, "%d.%d", tenths / 10, tenths % 10);
+    }
+  } else {
+    format_k(meters, buf, len);
+  }
+}
+
+// Returns the wearer's goal for a health metric. A goal of GOAL_AVERAGE means
+// "whatever I normally do in a day", which the watch can answer from its own
+// history; with no history to average yet, the old fixed target stands in.
+static int goal_for(HealthMetric metric, int configured, int fallback) {
+  if (configured != GOAL_AVERAGE) {
+    return configured;
+  }
+  time_t start = time_start_of_today();
+  HealthServiceAccessibilityMask mask =
+      health_service_metric_averaged_accessible(metric, start, start + SECONDS_PER_DAY,
+                                                HealthServiceTimeScopeDaily);
+  if (mask & HealthServiceAccessibilityMaskAvailable) {
+    int avg = (int)health_service_sum_averaged(metric, start, start + SECONDS_PER_DAY,
+                                               HealthServiceTimeScopeDaily);
+    if (avg > 0) return avg;
+  }
+  return fallback;
+}
+
+// Percentage of a goal reached, capped at 100. A goal of 0 would divide by
+// zero; goal_for() never returns one, but the bar arithmetic is not the place
+// to rely on that.
+static int pct_of_goal(int value, int goal) {
+  if (goal <= 0) return 0;
+  return value >= goal ? 100 : value * 100 / goal;
+}
+
+// Where the wearer normally stands by this time of day, as a percentage of the
+// same goal the fill is measured against — so the mark and the fill can be read
+// against each other. Returns PACE_NONE when the watch has nothing to compare
+// against, which is also the case for every non-health metric.
+#define PACE_NONE (-1)
+
+static int pace_pct_for(HealthMetric metric, int goal) {
+  time_t start = time_start_of_today();
+  time_t now = time(NULL);
+  HealthServiceAccessibilityMask mask =
+      health_service_metric_averaged_accessible(metric, start, now, HealthServiceTimeScopeDaily);
+  if (!(mask & HealthServiceAccessibilityMaskAvailable)) {
+    return PACE_NONE;
+  }
+  int typical = (int)health_service_sum_averaged(metric, start, now, HealthServiceTimeScopeDaily);
+  if (typical <= 0) return PACE_NONE;
+  return pct_of_goal(typical, goal);
+}
+
+// Minutes since local midnight, the same frame the phone sends sunrise and
+// sunset in.
+static int minutes_now(void) {
+  time_t now = time(NULL);
+  struct tm *tm = localtime(&now);
+  return tm->tm_hour * 60 + tm->tm_min;
+}
+
+// True when both ends of today's daylight are known. A single one is useless:
+// every sun calculation here is a position within a range.
+static bool sun_known(const DemiConfig *cfg) {
+  return cfg->sunrise != SUN_TIME_NONE && cfg->sunset != SUN_TIME_NONE
+      && cfg->sunset > cfg->sunrise;
+}
+
+// Reference points drawn across a bar's track, on top of the fill: the wearer's
+// usual pace on a health bar, or sunrise and sunset on the day bar. Two is all
+// any bar needs, and more than two notches would read as noise on a 6px track.
+#define BAR_MARKS_MAX 2
+
+typedef struct {
+  int count;
+  int pct[BAR_MARKS_MAX];
+} BarMarks;
+
+static void marks_add(BarMarks *m, int pct) {
+  if (m->count < BAR_MARKS_MAX && pct >= 0 && pct <= 100) {
+    m->pct[m->count++] = pct;
+  }
+}
+
+// Adds the wearer's usual-pace mark to a health bar, if they asked for it and
+// the watch has enough history to answer.
+static void add_pace_mark(BarMarks *marks, HealthMetric metric, int goal) {
+  if (!config_get()->pace_mark) return;
+  int pace = pace_pct_for(metric, goal);
+  if (pace != PACE_NONE) marks_add(marks, pace);
+}
+
+// Adds sunrise and sunset to the day bar, as their position within the 24-hour
+// span the bar covers. Only the day bar: on the daylight bar they are the two
+// ends by definition, and on the week/month/year bars a single day's light is
+// too compressed to mean anything.
+static void add_sun_marks(BarMarks *marks) {
+  DemiConfig *cfg = config_get();
+  if (!sun_known(cfg)) return;
+  marks_add(marks, cfg->sunrise * 100 / MINUTES_PER_DAY);
+  marks_add(marks, cfg->sunset * 100 / MINUTES_PER_DAY);
+}
+
+// Draws each mark as a 2px line across the track. The colour follows what the
+// mark lands on: black reads on the bright accent fill but nearly vanishes on
+// the dark-gray track, and light gray does the reverse. Marks are positioned
+// the same way the fill is, so a swapped bar keeps them lined up with what they
+// refer to.
+static void draw_bar_marks(GContext *ctx, const BarMarks *marks, int fill_pct,
+                           bool swapped, GRect track, bool vertical) {
+  for (int i = 0; i < marks->count; i++) {
+    graphics_context_set_fill_color(
+        ctx, marks->pct[i] <= fill_pct ? GColorBlack : GColorLightGray);
+    if (vertical) {
+      int off = track.size.h * marks->pct[i] / 100;
+      int y = swapped ? track.origin.y + track.size.h - off : track.origin.y + off;
+      graphics_fill_rect(ctx, GRect(track.origin.x, y - 1, track.size.w, 2), 0, GCornerNone);
+    } else {
+      int off = track.size.w * marks->pct[i] / 100;
+      int x = swapped ? track.origin.x + track.size.w - off : track.origin.x + off;
+      graphics_fill_rect(ctx, GRect(x - 1, track.origin.y, 2, track.size.h), 0, GCornerNone);
+    }
+  }
+}
+
+// Formats a duration in minutes as "3h20" or "45m", within the small font's
+// character set.
+static void format_duration(int minutes, char *buf, size_t len) {
+  if (minutes >= 60) {
+    snprintf(buf, len, "%dh%02d", minutes / 60, minutes % 60);
+  } else {
+    snprintf(buf, len, "%dm", minutes);
+  }
+}
+
+static bool is_leap_year(int year) {
+  return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+static int days_in_month(int mon, int year) {
+  static const int DAYS[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+  if (mon == 1 && is_leap_year(year)) return 29;
+  return DAYS[mon % 12];
+}
+
+// Percentage of a calendar period already elapsed, to the minute. These bars
+// need neither the phone nor a sensor, so unlike every other metric they
+// always have a real value to show.
+static int calendar_pct(int type, const struct tm *tm) {
+  int mins_today = tm->tm_hour * 60 + tm->tm_min;
+  switch (type) {
+    case PROGRESS_WEEK: {
+      // tm_wday counts Sunday as 0, which would start the week mid-weekend.
+      int wday = (tm->tm_wday + 6) % 7;
+      return (wday * MINUTES_PER_DAY + mins_today) * 100 / (7 * MINUTES_PER_DAY);
+    }
+    case PROGRESS_MONTH: {
+      int days = days_in_month(tm->tm_mon, tm->tm_year + 1900);
+      return ((tm->tm_mday - 1) * MINUTES_PER_DAY + mins_today) * 100 / (days * MINUTES_PER_DAY);
+    }
+    case PROGRESS_YEAR: {
+      int days = is_leap_year(tm->tm_year + 1900) ? 366 : 365;
+      return (tm->tm_yday * MINUTES_PER_DAY + mins_today) * 100 / (days * MINUTES_PER_DAY);
+    }
+    case PROGRESS_DAY:
+    default:
+      return mins_today * 100 / MINUTES_PER_DAY;
+  }
+}
+
 // Maps a custom-metric icon setting (chosen phone-side from the JSON item's
 // "name") to its PDC image.
 static GDrawCommandImage *custom_icon_image(int icon) {
@@ -99,12 +290,58 @@ static GDrawCommandImage *custom_icon_image(int icon) {
   }
 }
 
+// Calendar glyph geometry, shared by the date widget and the elapsed-period
+// bars so the same shape means the same thing in both places.
+#define CAL_W  20
+#define CAL_H  18
+
+// Draws the calendar box — rounded outline, two binding lines, filled header —
+// with `label` centred in its body. The box takes the accent colour and the
+// label white, which is how the date widget has always drawn its day number.
+static void draw_calendar_box(GContext *ctx, int x, int cy, const char *label, GColor color) {
+  int top = cy - CAL_H / 2;
+  graphics_context_set_stroke_color(ctx, color);
+  graphics_context_set_fill_color(ctx, color);
+  graphics_draw_line(ctx, GPoint(x + 5, top - 3), GPoint(x + 5, top));
+  graphics_draw_line(ctx, GPoint(x + CAL_W - 5, top - 3), GPoint(x + CAL_W - 5, top));
+  graphics_draw_round_rect(ctx, GRect(x, top, CAL_W, CAL_H), 3);
+  graphics_fill_rect(ctx, GRect(x + 1, top + 1, CAL_W - 2, 3), 0, GCornerNone);
+
+  graphics_context_set_text_color(ctx, GColorWhite);
+  // GOTHIC has top padding; pull the label up so it sits centered in the body.
+  graphics_draw_text(ctx, label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(x, top - 2, CAL_W, CAL_H),
+                     GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+}
+
+// The initial of "week" / "month" / "year" in each language, for the calendar
+// badge on those bars. Month is M everywhere; week and year are not, so this
+// follows the configured language rather than assuming English.
+static const char *period_initial(int type) {
+  static const char *const INITIAL[LANG_COUNT][3] = {
+    { "W", "M", "Y" },  // EN  week / month / year
+    { "W", "M", "J" },  // NL  week / maand / jaar
+    { "S", "M", "A" },  // FR  semaine / mois / année
+    { "W", "M", "J" },  // DE  Woche / Monat / Jahr
+    { "S", "M", "A" },  // ES  semana / mes / año
+  };
+  int lang = config_get()->language;
+  if (lang < 0 || lang >= LANG_COUNT) lang = LANG_EN;
+  int idx = (type == PROGRESS_WEEK) ? 0 : (type == PROGRESS_MONTH) ? 1 : 2;
+  return INITIAL[lang][idx];
+}
+
 // Computes a progress metric: percentage, label, icon and fill color. The type
 // is passed in rather than read from the config, so the dual layout can render
 // two different metrics.
 static void compute_progress(int type, GColor accent, int *pct, char *buf, size_t len,
-                             GDrawCommandImage **icon, GColor *fill) {
+                             GDrawCommandImage **icon, GColor *fill, BarMarks *marks,
+                             const char **badge) {
   *fill = accent;
+  marks->count = 0;
+  // Set only by the week/month/year bars, which draw a calendar box with this
+  // letter in it instead of an icon -- see draw_bar_icon().
+  *badge = NULL;
   switch (type) {
     case PROGRESS_BATTERY:
       *pct = s_batt_pct;
@@ -112,16 +349,24 @@ static void compute_progress(int type, GColor accent, int *pct, char *buf, size_
       *icon = s_img_battery;
       if (s_batt_pct < 20) *fill = GColorRed;
       break;
-    case PROGRESS_CALORIES:
-      *pct = s_kcal > 600 ? 100 : s_kcal * 100 / 600;
+    case PROGRESS_CALORIES: {
+      int goal = goal_for(HealthMetricActiveKCalories,
+                          config_get()->goal_kcal, FALLBACK_GOAL_KCAL);
+      *pct = pct_of_goal(s_kcal, goal);
+      add_pace_mark(marks, HealthMetricActiveKCalories, goal);
       snprintf(buf, len, "%d", s_kcal);
       *icon = s_img_flame;
       break;
-    case PROGRESS_DISTANCE:
-      *pct = s_dist_m > 5000 ? 100 : s_dist_m * 100 / 5000;
-      format_k(s_dist_m, buf, len);
+    }
+    case PROGRESS_DISTANCE: {
+      int goal = goal_for(HealthMetricWalkedDistanceMeters,
+                          config_get()->goal_dist_m, FALLBACK_GOAL_DIST_M);
+      *pct = pct_of_goal(s_dist_m, goal);
+      add_pace_mark(marks, HealthMetricWalkedDistanceMeters, goal);
+      format_distance(s_dist_m, buf, len);
       *icon = s_img_runner;
       break;
+    }
     case PROGRESS_CUSTOM_1: {
       DemiConfig *cfg = config_get();
       int v = cfg->custom1_value;
@@ -138,12 +383,58 @@ static void compute_progress(int type, GColor accent, int *pct, char *buf, size_
       *icon = custom_icon_image(cfg->custom2_icon);
       break;
     }
+    case PROGRESS_DAYLIGHT: {
+      DemiConfig *cfg = config_get();
+      *icon = s_img_sun;
+      if (!sun_known(cfg)) {
+        // Same contract as the custom slots and the weather widget: show that
+        // nothing is known rather than a fill that means nothing.
+        *pct = 0;
+        snprintf(buf, len, "--");
+        break;
+      }
+      int now = minutes_now();
+      if (now <= cfg->sunrise) {
+        *pct = 0;
+        format_duration(cfg->sunrise - now, buf, len);   // until first light
+      } else if (now >= cfg->sunset) {
+        *pct = 100;
+        snprintf(buf, len, "0m");
+      } else {
+        int span = cfg->sunset - cfg->sunrise;
+        *pct = (now - cfg->sunrise) * 100 / span;
+        format_duration(cfg->sunset - now, buf, len);    // daylight left
+      }
+      break;
+    }
+    case PROGRESS_DAY:
+    case PROGRESS_WEEK:
+    case PROGRESS_MONTH:
+    case PROGRESS_YEAR: {
+      time_t now = time(NULL);
+      *pct = calendar_pct(type, localtime(&now));
+      snprintf(buf, len, "%d%%", *pct);
+      if (type == PROGRESS_DAY) {
+        *icon = s_img_duration;
+        add_sun_marks(marks);
+      } else {
+        // PebbleOS has no week/month/year icons, so these three draw the same
+        // calendar box the date widget uses, with the period's initial in it --
+        // which tells them apart in a way one shared calendar icon could not.
+        *badge = period_initial(type);
+      }
+      break;
+    }
     case PROGRESS_STEPS:
-    default:
-      *pct = s_steps > 10000 ? 100 : s_steps * 100 / 10000;
+    default: {
+      int goal = goal_for(HealthMetricStepCount,
+                          config_get()->goal_steps, FALLBACK_GOAL_STEPS);
+      *pct = pct_of_goal(s_steps, goal);
+      add_pace_mark(marks, HealthMetricStepCount, goal);
       format_k(s_steps, buf, len);
       *icon = s_img_shoe;
       break;
+    }
   }
 }
 
@@ -310,18 +601,48 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
   }
 }
 
+// How much a bar shows beside its track at this moment. Normally the wearer's
+// setting, but a tap reveal temporarily promotes it to icon + value: the point
+// of keeping the bars bare is a clean face, not never seeing the numbers.
+static int active_progress_info(void) {
+  DemiConfig *cfg = config_get();
+  if (s_revealing && cfg->tap_bars) return PROGRESS_INFO_BOTH;
+  return cfg->progress_info;
+}
+
+// Draws whatever stands in for the metric beside the track: a PDC icon, or the
+// calendar box with a period initial for the week/month/year bars. Returns the
+// width it occupied so callers can place it from either edge.
+static int bar_icon_width(GDrawCommandImage *icon, const char *badge) {
+  if (badge) return CAL_W;
+  if (icon) return gdraw_command_image_get_bounds_size(icon).w;
+  return 0;
+}
+
+static void draw_bar_icon(GContext *ctx, GDrawCommandImage *icon, const char *badge,
+                          int x, int cy, GColor color) {
+  if (badge) {
+    draw_calendar_box(ctx, x, cy, badge, color);
+  } else if (icon) {
+    GSize sz = gdraw_command_image_get_bounds_size(icon);
+    draw_pdc(ctx, icon, GPoint(x, cy - sz.h / 2), color);
+  }
+}
+
 // Horizontal bar within the given rect: icon left of the track, value right of
 // it. Honours b.origin so the dual layout can place it as a strip; the stacked
 // layout passes the layer's own bounds and lands at the same place as before.
 static void draw_bar_horizontal(GContext *ctx, GRect b, GColor accent, int pct, const char *val,
-                                GDrawCommandImage *icon, GColor fill) {
+                                GDrawCommandImage *icon, GColor fill, const BarMarks *marks,
+                                const char *badge) {
   DemiConfig *cfg = config_get();
   int cy = b.origin.y + b.size.h / 2;
 
   // Equal reserve on both sides keeps the track midpoint at the rect's centre,
   // so it stays aligned with the digits. Showing less beside the bar hands part
   // of that reserve back to the track, keeping a margin off the bezel.
-  int side = bar_side_reserve(cfg->progress_info);
+  int info = active_progress_info();
+  int side = bar_side_reserve(info);
   int track_x = b.origin.x + side;
   int track_right = b.origin.x + b.size.w - side;
   int track_w = track_right - track_x;
@@ -337,17 +658,19 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, GColor accent, int pct, 
   graphics_context_set_fill_color(ctx, fill);
   graphics_fill_rect(ctx, GRect(fill_x, cy - 3, fill_w, 6), 3, GCornersAll);
 
-  if (cfg->progress_info == PROGRESS_INFO_NONE) return;
+  draw_bar_marks(ctx, marks, pct, cfg->progress_swap, GRect(track_x, cy - 3, track_w, 6), false);
+
+  if (info == PROGRESS_INFO_NONE) return;
 
   // Icon as an accent outline, matching the line-art style of the bottom bar.
   // Swapped, the icon takes the right edge and the value the left.
-  if (icon) {
-    GSize sz = gdraw_command_image_get_bounds_size(icon);
-    int ix = cfg->progress_swap ? b.origin.x + b.size.w - 4 - sz.w : b.origin.x + 4;
-    draw_pdc(ctx, icon, GPoint(ix, cy - sz.h / 2), accent);
+  int iw = bar_icon_width(icon, badge);
+  if (iw > 0) {
+    int ix = cfg->progress_swap ? b.origin.x + b.size.w - 4 - iw : b.origin.x + 4;
+    draw_bar_icon(ctx, icon, badge, ix, cy, accent);
   }
 
-  if (cfg->progress_info != PROGRESS_INFO_BOTH) return;
+  if (info != PROGRESS_INFO_BOTH) return;
 
   // The value hugs the track on whichever side it lands, so it aligns away
   // from its own edge.
@@ -362,15 +685,17 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, GColor accent, int pct, 
 // Side-by-side layout: vertical bar splitting the digits, icon above the track
 // and value below it — the stacked layout's arrangement rotated a quarter turn.
 static void draw_bar_vertical(GContext *ctx, GRect b, GColor accent, int pct, const char *val,
-                              GDrawCommandImage *icon, GColor fill) {
+                              GDrawCommandImage *icon, GColor fill, const BarMarks *marks,
+                              const char *badge) {
   DemiConfig *cfg = config_get();
   int cx = b.size.w / 2;
 
   // Room above for the icon and below for the value, symmetric so the track
   // stays centered on the digits' midline. Showing less keeps a margin rather
   // than running the bar to the very edge.
-  int side = cfg->progress_info == PROGRESS_INFO_BOTH ? 34
-           : cfg->progress_info == PROGRESS_INFO_ICON ? 30 : 20;
+  int info = active_progress_info();
+  int side = info == PROGRESS_INFO_BOTH ? 34
+           : info == PROGRESS_INFO_ICON ? 30 : 20;
   int track_h = b.size.h - 2 * side;
   if (track_h < 0) track_h = 0;
 
@@ -384,16 +709,21 @@ static void draw_bar_vertical(GContext *ctx, GRect b, GColor accent, int pct, co
   graphics_context_set_fill_color(ctx, fill);
   graphics_fill_rect(ctx, GRect(cx - VBAR_HALF_W, fill_y, VBAR_HALF_W * 2, fill_h), 3, GCornersAll);
 
-  if (cfg->progress_info == PROGRESS_INFO_NONE) return;
+  draw_bar_marks(ctx, marks, pct, cfg->progress_swap,
+                 GRect(cx - VBAR_HALF_W, side, VBAR_HALF_W * 2, track_h), true);
+
+  if (info == PROGRESS_INFO_NONE) return;
 
   // Swapped, the icon drops below the track and the value rises above it.
-  if (icon) {
-    GSize sz = gdraw_command_image_get_bounds_size(icon);
-    int iy = cfg->progress_swap ? b.size.h - 4 - sz.h : 4;
-    draw_pdc(ctx, icon, GPoint(cx - sz.w / 2, iy), accent);
+  int iw = bar_icon_width(icon, badge);
+  if (iw > 0) {
+    int ih = badge ? CAL_H : gdraw_command_image_get_bounds_size(icon).h;
+    int iy = cfg->progress_swap ? b.size.h - 4 - ih : 4;
+    // draw_calendar_box centres on cy, the PDC path draws from its top edge.
+    draw_bar_icon(ctx, icon, badge, cx - iw / 2, badge ? iy + ih / 2 : iy, accent);
   }
 
-  if (cfg->progress_info != PROGRESS_INFO_BOTH) return;
+  if (info != PROGRESS_INFO_BOTH) return;
 
   graphics_context_set_text_color(ctx, accent);
   graphics_draw_text(ctx, val, s_font20,
@@ -404,14 +734,16 @@ static void draw_bar_vertical(GContext *ctx, GRect b, GColor accent, int pct, co
 // Draws one bar for the given metric within rect r, in the given accent color.
 static void draw_metric_bar(GContext *ctx, GRect r, int type, GColor accent, bool vertical) {
   int pct;
+  BarMarks marks;
+  const char *badge;
   char val[8];
   GDrawCommandImage *icon = NULL;
   GColor fill;
-  compute_progress(type, accent, &pct, val, sizeof(val), &icon, &fill);
+  compute_progress(type, accent, &pct, val, sizeof(val), &icon, &fill, &marks, &badge);
   if (vertical) {
-    draw_bar_vertical(ctx, r, accent, pct, val, icon, fill);
+    draw_bar_vertical(ctx, r, accent, pct, val, icon, fill, &marks, badge);
   } else {
-    draw_bar_horizontal(ctx, r, accent, pct, val, icon, fill);
+    draw_bar_horizontal(ctx, r, accent, pct, val, icon, fill, &marks, badge);
   }
 }
 
@@ -468,6 +800,27 @@ static GDrawCommandImage *weather_icon(int cond, GColor *color) {
 #define BATT_H      12
 #define BATT_NUB_W  2
 
+// The next sun event: writes its clock time into buf and sets *is_rise.
+// Returns false when today's daylight is unknown, which is how the widget
+// knows to claim no space at all. After sunset the answer is the next
+// sunrise — today's, since tomorrow's differs by barely a minute.
+static bool next_sun_event(char *buf, size_t len, bool *is_rise) {
+  DemiConfig *cfg = config_get();
+  if (!sun_known(cfg)) return false;
+  int now = minutes_now();
+  *is_rise = (now < cfg->sunrise) || (now >= cfg->sunset);
+  int at = *is_rise ? cfg->sunrise : cfg->sunset;
+  int hour = at / 60;
+  if (!cfg->clock_24h) {
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+    // No AM/PM label: a sunrise is always morning and a sunset always evening,
+    // and the arrow already says which one this is.
+  }
+  snprintf(buf, len, "%d:%02d", hour, at % 60);
+  return true;
+}
+
 // Returns the pixel width a widget needs, or 0 for WIDGET_NONE / no content.
 // Mirrors the layout each draw_widget_* path produces so slots can be placed.
 static int widget_width(int type) {
@@ -477,7 +830,7 @@ static int widget_width(int type) {
       char da[3] = { s_day[0], s_day[1], 0 };
       GSize daw = graphics_text_layout_get_content_size(da, s_font20, GRect(0, 0, 40, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
-      return daw.w + 5 + 20;  // weekday + gap + calendar box
+      return daw.w + 5 + CAL_W;  // weekday + gap + calendar box
     }
     case WIDGET_WEATHER: {
       // Nothing known yet (or the stored reading expired): claim no space rather
@@ -500,6 +853,19 @@ static int widget_width(int type) {
       if (!s_img_heart) return 0;
       GSize sz = gdraw_command_image_get_bounds_size(s_img_heart);
       GSize vw = graphics_text_layout_get_content_size(hs, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      return sz.w + 1 + vw.w;
+    }
+    case WIDGET_SUN: {
+      char ss[8];
+      bool is_rise;
+      // Mirrors the weather slot: nothing known yet means no space claimed,
+      // rather than a placeholder time the watch cannot vouch for.
+      if (!next_sun_event(ss, sizeof(ss), &is_rise)) return 0;
+      GDrawCommandImage *si = is_rise ? s_img_sunrise : s_img_sunset;
+      if (!si) return 0;
+      GSize sz = gdraw_command_image_get_bounds_size(si);
+      GSize vw = graphics_text_layout_get_content_size(ss, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
       return sz.w + 1 + vw.w;
     }
@@ -526,7 +892,6 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
   switch (type) {
     case WIDGET_DATE: {
       // Weekday abbreviation (2 letters) + a calendar box with the day number.
-      GFont num = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
       char da[3] = { s_day[0], s_day[1], 0 };
       GSize daw = graphics_text_layout_get_content_size(da, s_font20, GRect(0, 0, 40, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
@@ -535,20 +900,9 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       x += daw.w + 5;
 
-      int cw = 20, ch = 18;
-      int box_top = cy - ch / 2;
-      graphics_context_set_stroke_color(ctx, cfg->accent_color);
-      graphics_context_set_fill_color(ctx, cfg->accent_color);
-      graphics_draw_line(ctx, GPoint(x + 5, box_top - 3), GPoint(x + 5, box_top));
-      graphics_draw_line(ctx, GPoint(x + cw - 5, box_top - 3), GPoint(x + cw - 5, box_top));
-      graphics_draw_round_rect(ctx, GRect(x, box_top, cw, ch), 3);
-      graphics_fill_rect(ctx, GRect(x + 1, box_top + 1, cw - 2, 3), 0, GCornerNone);
       char dn[4];
       snprintf(dn, sizeof(dn), "%d", s_mday);
-      graphics_context_set_text_color(ctx, GColorWhite);
-      // GOTHIC has top padding; pull the number up so it sits centered in the body.
-      graphics_draw_text(ctx, dn, num, GRect(x, box_top - 2, cw, ch),
-                         GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+      draw_calendar_box(ctx, x, cy, dn, cfg->accent_color);
       break;
     }
     case WIDGET_WEATHER: {
@@ -581,6 +935,26 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
       graphics_context_set_text_color(ctx, GColorLightGray);
       graphics_draw_text(ctx, hs, s_font20, GRect(x, ty, vw.w, 22),
+                         GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+      break;
+    }
+    case WIDGET_SUN: {
+      char ss[8];
+      bool is_rise;
+      // Mirrors widget_width: unknown daylight draws nothing at all.
+      if (!next_sun_event(ss, sizeof(ss), &is_rise)) break;
+      // The official icons are a sun over a horizon with the arrow built in,
+      // so which event this is reads without a separate marker -- and without
+      // being mistaken for the "sunny" weather icon, which is a bare sun.
+      GDrawCommandImage *si = is_rise ? s_img_sunrise : s_img_sunset;
+      if (!si) break;
+      GSize sz = gdraw_command_image_get_bounds_size(si);
+      draw_pdc(ctx, si, GPoint(x, cy - sz.h / 2), GColorChromeYellow);
+      x += sz.w + 1;
+      GSize vw = graphics_text_layout_get_content_size(ss, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_draw_text(ctx, ss, s_font20, GRect(x, ty, vw.w, 22),
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       break;
     }
@@ -644,6 +1018,16 @@ static void bottom_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_stroke_color(ctx, GColorDarkGray);
   graphics_draw_line(ctx, GPoint(0, 0), GPoint(W, 0));
 
+  // A tap reveal takes the whole row for its few seconds rather than squeezing
+  // in beside the widgets, which have no room to spare.
+  if (s_revealing && cfg->tap_mode != TAP_OFF) {
+    const char *text = (cfg->tap_mode == TAP_DATE) ? s_full_date : s_seconds;
+    graphics_context_set_text_color(ctx, cfg->accent_color);
+    graphics_draw_text(ctx, text, s_font20, GRect(0, ty, W, 22),
+                       GTextOverflowModeFill, GTextAlignmentCenter, NULL);
+    return;
+  }
+
   // Left slot.
   int lw = widget_width(cfg->widget_left);
   if (lw > 0) draw_widget_at(ctx, cfg->widget_left, 4, cy, ty);
@@ -687,6 +1071,7 @@ static void status_update_proc(Layer *layer, GContext *ctx) {
 
 static void update_time(struct tm *tm);
 static void apply_layout(GRect ub);
+static void apply_tap_subscription(void);
 
 // Config-change callback: refresh date strings (language may have changed) and redraw.
 static void redraw_all(void) {
@@ -697,6 +1082,9 @@ static void redraw_all(void) {
   // Guard: this callback is registered before the window pushes its layers.
   if (s_window) {
     apply_layout(layer_get_unobstructed_bounds(window_get_root_layer(s_window)));
+    // Turning taps on or off in settings takes effect straight away, rather
+    // than at the next launch.
+    apply_tap_subscription();
   }
   if (s_clock_layer)    layer_mark_dirty(s_clock_layer);
   if (s_progress_layer) layer_mark_dirty(s_progress_layer);
@@ -730,20 +1118,93 @@ static void update_time(struct tm *tm) {
     { "SO", "MO", "DI", "MI", "DO", "FR", "SA" },  // DE
     { "DO", "LU", "MA", "MI", "JU", "VI", "SA" },  // ES
   };
+  // Month abbreviations for the tap-to-reveal date, same constraints: three
+  // ASCII letters, so no "FÉV" or "DÉC".
+  static const char *const MON[LANG_COUNT][12] = {
+    { "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" },  // EN
+    { "JAN", "FEB", "MRT", "APR", "MEI", "JUN",
+      "JUL", "AUG", "SEP", "OKT", "NOV", "DEC" },  // NL
+    { "JAN", "FEV", "MAR", "AVR", "MAI", "JUN",
+      "JUL", "AOU", "SEP", "OCT", "NOV", "DEC" },  // FR
+    { "JAN", "FEB", "MAR", "APR", "MAI", "JUN",
+      "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ" },  // DE
+    { "ENE", "FEB", "MAR", "ABR", "MAY", "JUN",
+      "JUL", "AGO", "SEP", "OCT", "NOV", "DIC" },  // ES
+  };
   int lang = config_get()->language;
   if (lang < 0 || lang >= LANG_COUNT) lang = LANG_EN;
   strncpy(s_day, WDAY[lang][tm->tm_wday % 7], sizeof(s_day) - 1);
   s_day[sizeof(s_day) - 1] = 0;
   s_mday = tm->tm_mday;
+
+  snprintf(s_full_date, sizeof(s_full_date), "%s %d %s %d",
+           WDAY[lang][tm->tm_wday % 7], tm->tm_mday, MON[lang][tm->tm_mon % 12],
+           tm->tm_year + 1900);
+  snprintf(s_seconds, sizeof(s_seconds), ":%02d", tm->tm_sec);
 }
 
-// Minute tick: refresh time, redraw clock + bottom row.
+// Minute tick: refresh time, redraw clock + bottom row. Ticks every second
+// instead while a seconds reveal is on screen.
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time(tick_time);
   if (s_clock_layer)  layer_mark_dirty(s_clock_layer);
   if (s_bottom_layer) layer_mark_dirty(s_bottom_layer);
   // Quiet time is schedule-driven (no event); re-check it every minute.
   if (s_status_layer) layer_mark_dirty(s_status_layer);
+}
+
+// True when a tap has something to show: the bottom row, the bars, or both.
+static bool tap_reveals_anything(void) {
+  DemiConfig *cfg = config_get();
+  return cfg->tap_mode != TAP_OFF || cfg->tap_bars;
+}
+
+// Ends a tap reveal: drop back to minute ticks and restore the widget row.
+static void reveal_end(void *context) {
+  s_reveal_timer = NULL;
+  s_revealing = false;
+  tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+  if (s_bottom_layer)   layer_mark_dirty(s_bottom_layer);
+  if (s_progress_layer) layer_mark_dirty(s_progress_layer);
+}
+
+// Wrist tap: show the seconds or the full date over the widget row for a few
+// seconds. A tap while one is already up restarts the countdown rather than
+// stacking a second timer.
+static void tap_handler(AccelAxisType axis, int32_t direction) {
+  if (!tap_reveals_anything()) return;
+
+  if (s_reveal_timer) {
+    app_timer_reschedule(s_reveal_timer, TAP_REVEAL_MS);
+  } else {
+    s_reveal_timer = app_timer_register(TAP_REVEAL_MS, reveal_end, NULL);
+  }
+
+  s_revealing = true;
+  // Seconds have to advance while they are on screen; the date does not, so it
+  // leaves the tick alone and costs nothing extra.
+  if (config_get()->tap_mode == TAP_SECONDS) {
+    tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+  }
+  time_t now = time(NULL);
+  update_time(localtime(&now));
+  if (s_bottom_layer)   layer_mark_dirty(s_bottom_layer);
+  if (s_progress_layer) layer_mark_dirty(s_progress_layer);
+}
+
+// Subscribes to wrist taps only when the setting asks for them, so a watch with
+// the feature off never wakes for the accelerometer at all.
+static void apply_tap_subscription(void) {
+  if (!tap_reveals_anything()) {
+    accel_tap_service_unsubscribe();
+    if (s_reveal_timer) {
+      app_timer_cancel(s_reveal_timer);
+      reveal_end(NULL);
+    }
+  } else {
+    accel_tap_service_subscribe(tap_handler);
+  }
 }
 
 // Bluetooth/phone connection change: redraw the status row.
@@ -837,6 +1298,9 @@ static void window_load(Window *window) {
   s_img_quiet    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_QUIET);
   s_img_bt_off   = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_BT_OFF);
   s_img_gauge          = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_GAUGE);
+  s_img_sunrise        = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_SUNRISE);
+  s_img_sunset         = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_SUNSET);
+  s_img_duration       = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_DURATION);
   s_img_claude_session = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_CLAUDE_SESSION);
   s_img_claude_week    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_CLAUDE_WEEK);
 
@@ -878,10 +1342,16 @@ static void window_load(Window *window) {
     .change      = unobstructed_change,
     .did_change  = unobstructed_did_change,
   }, NULL);
+  apply_tap_subscription();
 }
 
 // Tears down everything created in window_load.
 static void window_unload(Window *window) {
+  if (s_reveal_timer) {
+    app_timer_cancel(s_reveal_timer);
+    s_reveal_timer = NULL;
+  }
+  accel_tap_service_unsubscribe();
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
   health_service_events_unsubscribe();
@@ -912,6 +1382,9 @@ static void window_unload(Window *window) {
   gdraw_command_image_destroy(s_img_quiet);
   gdraw_command_image_destroy(s_img_bt_off);
   gdraw_command_image_destroy(s_img_gauge);
+  gdraw_command_image_destroy(s_img_sunrise);
+  gdraw_command_image_destroy(s_img_sunset);
+  gdraw_command_image_destroy(s_img_duration);
   gdraw_command_image_destroy(s_img_claude_session);
   gdraw_command_image_destroy(s_img_claude_week);
 }
@@ -939,7 +1412,10 @@ static void init(void) {
 
   app_message_register_inbox_received(config_inbox_received);
   app_message_register_inbox_dropped(inbox_dropped);
-  app_message_open(256, 64);
+  // 256 was already close to the limit for the settings dict Clay sends; the
+  // goals, units and tap mode added here would push a full save past it, and
+  // an over-large dict is dropped silently apart from inbox_dropped's log.
+  app_message_open(512, 64);
 }
 
 // Destroys the window.

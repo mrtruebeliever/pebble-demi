@@ -1,8 +1,9 @@
 # Demi
 
 A configurable watchface for the **Pebble Time 2** (platform `emery`). Demi shows large
-anti-aliased vector digits, a configurable progress bar in one of two layouts, and three
-configurable widget slots (date / weather / battery / heart rate) along the bottom.
+anti-aliased vector digits, a configurable progress bar in one of three layouts, and three
+configurable widget slots (date / weather / battery / heart rate / sunrise–sunset) along the
+bottom.
 
 ![Demi — green, steps, 24h](demi.png)
 
@@ -58,14 +59,19 @@ Open the watchface settings in the Pebble app to configure:
 | **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper), **accent–white, white–accent, accent–darkgrey, accent–lightgrey** (accent variants track the chosen accent color) |
 | **24-hour clock** | on (24h) / off (12h with AM/PM label beside the hour, or below it in the horizontal layout) — default 24h |
 | **Layout** | Vertical (hours above minutes) / Horizontal, vertical bar / Horizontal, two bars — default vertical |
-| **Progress bar** | Steps / Battery / Calories / Distance / Custom 1 / Custom 2 |
-| **Second bar** | Steps / Battery / Calories / Distance / Custom 1 / Custom 2 — the lower bar in the two-bar layout, ignored elsewhere — default battery |
+| **Progress bar** | Steps / Battery / Calories / Distance / Custom 1 / Custom 2 / Daylight / Day, week, month or year elapsed |
+| **Second bar** | Same list — the lower bar in the two-bar layout, ignored elsewhere — default battery |
 | **Beside the bar** | Nothing / Icon only / Icon and value — showing less lengthens the track — default icon and value |
 | **Second bar color** | on / off, plus a 12-swatch picker — gives the two-bar layout's lower bar its own color. Off (default) means it follows the main accent, so changing that doesn't strand it |
 | **Swap icon and value** | on / off — trades their places and reverses the bar's fill direction with them (vertical: value left, icon right, fills right-to-left; horizontal: value above, icon below, fills bottom-up) — default off |
-| **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate — default date / — / weather |
+| **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate / Sunrise–sunset — default date / — / weather |
 | **Battery percentage** | on / off — show the % beside the battery glyph, or glyph only — default on |
-| **Language** (date) | Nederlands / English / Deutsch / Français |
+| **Goals** | Step, calorie and distance targets — where each bar reaches 100%. `0` means "use my own daily average" |
+| **Usual pace** | on / off — a mark on the bar showing where you normally stand at this time of day — default off |
+| **Distance unit** | Automatic (the watch's own setting) / Kilometres / Miles — default automatic |
+| **Tap on the watch** | Nothing / Seconds / Full date — default nothing |
+| **Show icon and value on tap** | on / off — a tap also expands the bars to icon + value, for a face kept bare — default off |
+| **Language** (date + settings page) | Automatic (watch language) / English / Nederlands / Français / Deutsch / Español — default automatic |
 | **Temperature unit** | Celsius / Fahrenheit |
 | **Weather icon in accent color** | on / off (off = per-condition colors) — default off |
 
@@ -113,11 +119,87 @@ WMO weather codes are mapped to 7 conditions by `condFromWMO`:
 | 5 | Light snow | Celeste |
 | 6 | Heavy snow | Celeste |
 
+## Sunrise & sunset
+
+![Day bar with sun marks, and the sunrise–sunset widget](demi_sun.png)
+
+*Day-elapsed bar at 82%, with sunrise and sunset marked on the track — the first notch sits
+inside the fill, the second still ahead of it. The middle widget slot shows the next sun
+event: sunset at 21:13.*
+
+The same Open-Meteo request also asks for `daily=sunrise,sunset` with `timezone=auto`, so
+there is no second round trip and still no API key. The phone parses both to **minutes
+since local midnight** and sends them alongside the weather.
+
+- The **sunrise–sunset widget** shows whichever event comes next: the sunrise time before
+  dawn, the sunset time after it. It uses PebbleOS's own `Sunrise` / `Sunset` icons — a half
+  sun over a horizon with the arrow built in — which keeps it from being read as the weather
+  slot's bare sun. After sunset it shows today's sunrise, which differs from tomorrow's by
+  about a minute.
+- The **Daylight** progress bar fills from sunrise to sunset, labelled with the daylight
+  still left (`3h15`) — or, before dawn, the wait until it (`45m`).
+
+Both are kept for **26 hours** rather than the weather's 3: this morning's sunrise is still
+correct tonight, while this morning's temperature is not. With nothing known, the widget
+claims no space and the bar shows `--`, the same contract the weather slot follows.
+
+## Goals, pace and units
+
+The step, calorie and distance bars each have their own goal — where the bar reaches 100%.
+Entering **`0`** means "use my own daily average": the watch answers from its own health
+history via `health_service_sum_averaged`, falling back to the old fixed targets (10000
+steps / 600 kcal / 5000 m) when it has no history yet.
+
+The optional **usual-pace mark** draws a 2px line across the track at the point you
+normally reach by this time of day, so the fill can be read against it. It only appears for
+the three health metrics — nothing else has a "normal for now".
+
+Beside the track, the day bar shows a clock glyph, while **week, month and year draw the
+same calendar box the date widget uses**, with the period's initial inside — `W`/`M`/`J` in
+Dutch, `W`/`M`/`Y` in English, `S`/`M`/`A` in French and Spanish, following the configured
+language. PebbleOS has no week/month/year icons, and one shared calendar icon would leave
+the three indistinguishable.
+
+The **day-elapsed bar** carries two marks of its own, needing no setting: **sunrise and
+sunset**, at their positions within the 24 hours the bar spans. It turns a bare percentage
+into something you can read at a glance — how much daylight is behind you and how much is
+left. They are deliberately absent from the daylight bar, where they would sit at 0% and
+100% by definition, and from the week/month/year bars, where a single day's light is too
+compressed to mean anything.
+
+Marks are drawn **black where they land on the accent fill and light grey where they land
+on the bare track**, since either colour alone disappears against one half of the bar.
+
+Distance is stored and sent in **meters** throughout; only the drawing converts. By default
+the unit follows the watch's own setting, read with
+`health_service_get_measurement_system_for_display()`, and it can be pinned to kilometres or
+miles. The settings page shows the goal field in the matching unit, and the phone converts
+whatever you type to meters before sending.
+
+## Tap to reveal
+
+Two independent settings decide what a tap does, and a tap is only listened for when at
+least one of them is on:
+
+- **Tap on the watch** (nothing / seconds / full date) replaces the bottom widget row for
+  five seconds.
+- **Show icon and value on tap** temporarily expands the progress bars to icon + value. It
+  earns its place when "beside the bar" is set to nothing or icon-only: the face stays as
+  bare as you wanted it, and still gives up the numbers when you ask. The track shortens to
+  make room, exactly as it would if the detail were permanent.
+
+With **Tap on the watch** set to seconds or the full date, the seconds tick live (the watch
+drops to second-unit ticks only for those five seconds), the date does not. The date reads `TH 13 AUG 2026`,
+using three-letter ASCII month abbreviations in the configured language, since the small
+font's `characterRegex` excludes accented glyphs. Off by default: an unexpected reveal on
+every knock is worse than a feature nobody asked for, and off means the accelerometer is
+never subscribed at all.
+
 ## Custom metrics (JSON url)
 
 The **Custom 1** / **Custom 2** progress-bar types let you track any percentage-based
-stat that isn't steps/battery/calories/distance. In settings, under "Aangepast
-(JSON-url)", enter a url that returns:
+stat that isn't steps/battery/calories/distance. In settings, under "Custom (JSON url)",
+enter a url that returns:
 
 ```json
 { "items": [ { "name": "session", "value": 42 }, { "name": "week", "value": 78 } ] }
@@ -167,8 +249,10 @@ third-party assets keep their original licenses:
   [`resources/fonts/OFL.txt`](resources/fonts/OFL.txt).
 - **Icons** (`resources/icons/*`) — derived from
   [pebble-dev/iconography](https://github.com/pebble-dev/iconography), licensed
-  **Apache-2.0**. The distance icon is `Pebble_25x25_Run.svg`; the battery icon is a
-  custom 25×25 SVG.
+  **Apache-2.0**. The distance icon is `Pebble_25x25_Run.svg`; the sun widget uses
+  `Pebble_25x25_Sunrise.svg` / `Sunset.svg`; the day-elapsed bar uses
+  `Pebble_25x25_Duration.svg`; the battery icon is a custom 25×25 SVG, and the calendar box
+  (date widget and the week/month/year bars) is drawn in C rather than shipped as an asset.
 - **`tools/svg2pdc.py`** and **`tools/pebble_image_routines.py`** — © 2015 Pebble
   Technology, from the Pebble SDK examples (ported to Python 3).
 - **Weather** data from [Open-Meteo](https://open-meteo.com/) (no API key required).

@@ -61,6 +61,37 @@ static void set_lang(int *dst, int32_t v) {
   *dst = (v >= 0 && v < LANG_COUNT) ? (int)v : detect_locale_lang();
 }
 
+// The watch carries its own metric/imperial preference; asking the user again
+// in Clay would be a second source of truth for something it already knows.
+// MeasurementSystemUnknown (no health data, or a metric this watch cannot
+// express) falls back to metric.
+static int detect_measurement_system(void) {
+  MeasurementSystem sys =
+      health_service_get_measurement_system_for_display(HealthMetricWalkedDistanceMeters);
+  return (sys == MeasurementSystemImperial) ? DIST_MILES : DIST_KM;
+}
+
+// The user's raw choice, which may be DIST_AUTO. Kept apart from the resolved
+// value for the same reason as s_lang_pref above: saving the resolved unit
+// would silently pin a watch that was set to follow its own setting.
+static int s_dist_pref = DIST_AUTO;
+
+// DIST_AUTO means "follow the watch"; anything else is the user's own pick.
+static void set_dist_unit(int *dst, int32_t v) {
+  s_dist_pref = (int)v;
+  *dst = (v >= 0 && v < DIST_UNIT_COUNT) ? (int)v : detect_measurement_system();
+}
+
+// Applies a goal, which is a positive target or GOAL_AVERAGE (0) meaning "use
+// my own average". A negative value is meaningless and leaves the goal alone.
+static void set_goal(int *dst, int32_t v) {
+  if (v >= 0) {
+    *dst = (int)v;
+  } else {
+    APP_LOG(APP_LOG_LEVEL_WARNING, "ignored negative goal: %d", (int)v);
+  }
+}
+
 static void set_enum(int *dst, int32_t v, int count) {
   if (v >= 0 && v < count) {
     *dst = (int)v;
@@ -77,6 +108,14 @@ static void set_enum(int *dst, int32_t v, int count) {
 static int32_t clamp_pct(int32_t v) {
   if (v < 0) return 0;
   if (v > 100) return 100;
+  return v;
+}
+
+// Validates a sunrise/sunset as minutes since local midnight. Anything outside
+// a day means the phone sent something nonsensical, and is stored as "unknown"
+// so the daylight bar draws nothing instead of a bogus fill.
+static int32_t sun_minutes_or_none(int32_t v) {
+  if (v < 0 || v >= 24 * 60) return SUN_TIME_NONE;
   return v;
 }
 
@@ -99,8 +138,17 @@ void config_load(void) {
   s_config.clock_scheme      = DEFAULT_CLOCK_SCHEME;
   s_config.clock_24h         = DEFAULT_CLOCK_24H;
   s_config.weather_accent    = DEFAULT_WEATHER_ACCENT;
+  s_config.goal_steps        = DEFAULT_GOAL_STEPS;
+  s_config.goal_kcal         = DEFAULT_GOAL_KCAL;
+  s_config.goal_dist_m       = DEFAULT_GOAL_DIST;
+  s_config.dist_unit         = DIST_KM;   // resolved by set_dist_unit() below
+  s_config.pace_mark         = DEFAULT_PACE_MARK;
+  s_config.tap_mode          = DEFAULT_TAP_MODE;
+  s_config.tap_bars          = DEFAULT_TAP_BARS;
   s_config.weather_temp      = WEATHER_TEMP_NONE;
   s_config.weather_condition = WEATHER_COND_NONE;
+  s_config.sunrise           = SUN_TIME_NONE;
+  s_config.sunset            = SUN_TIME_NONE;
   s_config.custom1_value     = CUSTOM_VALUE_NONE;
   s_config.custom1_icon      = CUSTOM_ICON_GAUGE;
   s_config.custom2_value     = CUSTOM_VALUE_NONE;
@@ -113,6 +161,18 @@ void config_load(void) {
     if (age >= 0 && age < WEATHER_MAX_AGE_S) {
       s_config.weather_temp      = persist_read_int(PERSIST_WEATHER_TEMP);
       s_config.weather_condition = persist_read_int(PERSIST_WEATHER_COND);
+    }
+  }
+
+  // Sunrise/sunset ride along with the weather fetch and share its timestamp,
+  // but they are judged against a full day rather than WEATHER_MAX_AGE_S: this
+  // morning's sunrise is still correct tonight, this morning's temperature is
+  // not.
+  if (persist_exists(PERSIST_WEATHER_TIME) && persist_exists(PERSIST_SUNRISE)) {
+    int age = (int)time(NULL) - persist_read_int(PERSIST_WEATHER_TIME);
+    if (age >= 0 && age < SUN_MAX_AGE_S) {
+      s_config.sunrise = persist_read_int(PERSIST_SUNRISE);
+      s_config.sunset  = persist_read_int(PERSIST_SUNSET);
     }
   }
 
@@ -176,11 +236,34 @@ void config_load(void) {
   if (persist_exists(PERSIST_TEMP_UNIT)) {
     set_enum(&s_config.temp_unit, persist_read_int(PERSIST_TEMP_UNIT), TEMP_UNIT_COUNT);
   }
+  if (persist_exists(PERSIST_GOAL_STEPS)) {
+    set_goal(&s_config.goal_steps, persist_read_int(PERSIST_GOAL_STEPS));
+  }
+  if (persist_exists(PERSIST_GOAL_KCAL)) {
+    set_goal(&s_config.goal_kcal, persist_read_int(PERSIST_GOAL_KCAL));
+  }
+  if (persist_exists(PERSIST_GOAL_DIST)) {
+    set_goal(&s_config.goal_dist_m, persist_read_int(PERSIST_GOAL_DIST));
+  }
+  // DIST_AUTO (the default) and any stale out-of-range value both resolve to
+  // the watch's own measurement system, same as the language below.
+  set_dist_unit(&s_config.dist_unit,
+                persist_exists(PERSIST_DIST_UNIT) ? persist_read_int(PERSIST_DIST_UNIT)
+                                                  : DEFAULT_DIST_UNIT);
+  if (persist_exists(PERSIST_PACE_MARK)) {
+    s_config.pace_mark = persist_read_bool(PERSIST_PACE_MARK);
+  }
+  if (persist_exists(PERSIST_TAP_MODE)) {
+    set_enum(&s_config.tap_mode, persist_read_int(PERSIST_TAP_MODE), TAP_COUNT);
+  }
+  if (persist_exists(PERSIST_TAP_BARS)) {
+    s_config.tap_bars = persist_read_bool(PERSIST_TAP_BARS);
+  }
   // LANG_AUTO (the default) and any stale out-of-range value both resolve to
   // the watch's own locale rather than to a fixed language.
   set_lang(&s_config.language,
            persist_exists(PERSIST_LANGUAGE) ? persist_read_int(PERSIST_LANGUAGE)
-                                            : LANG_AUTO);
+                                            : DEFAULT_LANGUAGE);
   if (persist_exists(PERSIST_CLOCK_SCHEME)) {
     set_enum(&s_config.clock_scheme, persist_read_int(PERSIST_CLOCK_SCHEME), CLOCK_SCHEME_COUNT);
   }
@@ -211,6 +294,13 @@ void config_save(void) {
   persist_write_int(PERSIST_WIDGET_RIGHT, s_config.widget_right);
   persist_write_bool(PERSIST_BATTERY_PCT, s_config.battery_pct);
   persist_write_int(PERSIST_TEMP_UNIT, s_config.temp_unit);
+  persist_write_int(PERSIST_GOAL_STEPS, s_config.goal_steps);
+  persist_write_int(PERSIST_GOAL_KCAL, s_config.goal_kcal);
+  persist_write_int(PERSIST_GOAL_DIST, s_config.goal_dist_m);
+  persist_write_int(PERSIST_DIST_UNIT, s_dist_pref);  // keep AUTO as AUTO
+  persist_write_bool(PERSIST_PACE_MARK, s_config.pace_mark);
+  persist_write_int(PERSIST_TAP_MODE, s_config.tap_mode);
+  persist_write_bool(PERSIST_TAP_BARS, s_config.tap_bars);
   persist_write_int(PERSIST_LANGUAGE, s_lang_pref);   // keep AUTO as AUTO
   persist_write_int(PERSIST_CLOCK_SCHEME, s_config.clock_scheme);
   persist_write_bool(PERSIST_CLOCK_24H, s_config.clock_24h);
@@ -222,6 +312,8 @@ void config_save(void) {
 static void weather_save(void) {
   persist_write_int(PERSIST_WEATHER_TEMP, s_config.weather_temp);
   persist_write_int(PERSIST_WEATHER_COND, s_config.weather_condition);
+  persist_write_int(PERSIST_SUNRISE, s_config.sunrise);
+  persist_write_int(PERSIST_SUNSET, s_config.sunset);
   persist_write_int(PERSIST_WEATHER_TIME, (int)time(NULL));
 }
 
@@ -294,6 +386,36 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
     set_enum(&s_config.temp_unit, tuple_int(t), TEMP_UNIT_COUNT);
     settings_changed = true;
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_GOAL_STEPS))) {
+    set_goal(&s_config.goal_steps, tuple_int(t));
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_GOAL_KCAL))) {
+    set_goal(&s_config.goal_kcal, tuple_int(t));
+    settings_changed = true;
+  }
+  // Always meters: the phone converts whichever unit the user typed in before
+  // sending, so the watch never has to know about kilometres or miles here.
+  if ((t = dict_find(iter, MESSAGE_KEY_GOAL_DIST))) {
+    set_goal(&s_config.goal_dist_m, tuple_int(t));
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_DIST_UNIT))) {
+    set_dist_unit(&s_config.dist_unit, tuple_int(t));
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_PACE_MARK))) {
+    s_config.pace_mark = (tuple_int(t) != 0);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_TAP_MODE))) {
+    set_enum(&s_config.tap_mode, tuple_int(t), TAP_COUNT);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_TAP_BARS))) {
+    s_config.tap_bars = (tuple_int(t) != 0);
+    settings_changed = true;
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_LANGUAGE))) {
     set_lang(&s_config.language, tuple_int(t));
     settings_changed = true;
@@ -319,6 +441,18 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_COND))) {
     s_config.weather_condition = tuple_int(t);
+    weather_changed = true;
+  }
+
+  // Sunrise/sunset arrive with the weather, as minutes since local midnight.
+  // Anything outside a day is dropped rather than stored: it would otherwise
+  // feed straight into the daylight bar's arithmetic.
+  if ((t = dict_find(iter, MESSAGE_KEY_SUN_RISE))) {
+    s_config.sunrise = sun_minutes_or_none(tuple_int(t));
+    weather_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_SUN_SET))) {
+    s_config.sunset = sun_minutes_or_none(tuple_int(t));
     weather_changed = true;
   }
 
@@ -350,6 +484,7 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   if (custom_changed) {
     custom_save();
   }
+
   if (s_change_cb) {
     s_change_cb();
   }

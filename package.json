@@ -1,7 +1,7 @@
 {
   "name": "demi",
   "author": "mrtruebeliever",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "license": "MIT",
   "keywords": [
     "pebble-app"
@@ -51,7 +51,18 @@
       "CUSTOM1_ICON",
       "CUSTOM2_VALUE",
       "CUSTOM2_ICON",
-      "CUSTOM_URL"
+      "CUSTOM_URL",
+      "SUN_RISE",
+      "SUN_SET",
+      "GOAL_STEPS",
+      "GOAL_KCAL",
+      "GOAL_DIST",
+      "GOAL_DIST_KM",
+      "GOAL_DIST_MI",
+      "DIST_UNIT",
+      "PACE_MARK",
+      "TAP_MODE",
+      "TAP_BARS"
     ],
     "resources": {
       "media": [
@@ -152,6 +163,21 @@
           "type": "raw",
           "name": "IMG_GAUGE",
           "file": "icons/gauge.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_SUNRISE",
+          "file": "icons/sunrise.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_SUNSET",
+          "file": "icons/sunset.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_DURATION",
+          "file": "icons/duration.pdc"
         },
         {
           "type": "raw",
