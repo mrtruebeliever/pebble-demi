@@ -13,6 +13,8 @@ bottom.
 | 12h AM/PM · orange | Cyan · battery bar + glyph | Blue · distance (Run icon) |
 | ![Purple, calories](demi_calories.png) | ![Yellow, accent hours](demi_accent_clock.png) | ![Magenta, three widgets](demi_widgets.png) |
 | Purple · calories | Yellow · accent-color hours | Magenta · three widget slots (date / battery / weather) |
+| ![Light theme](demi_light.png) | ![Elapsed bars](demi_elapsed.png) | ![Tap reveal](demi_reveal.png) |
+| Light theme · day and battery bars | Day + year elapsed · second bar in its own color | Tap reveal · hidden bar detail and the seconds |
 
 UUID: `f6cb4093-9dc1-4c3a-8316-d1d79e9e94d8`
 
