@@ -16,20 +16,39 @@
 // degrades rather than breaks.
 
 var EN = {
+  'Contrast uren/minuten':
+    'Hour / minute contrast',
+  'Hoe sterk de uren en de minuten afsteken tegen de achtergrond.':
+    'How strongly the hours and minutes stand out against the background.',
+  'Sterk / zwakst':
+    'Strong / faintest',
+  'Sterk / sterk':
+    'Strong / strong',
+  'Sterk / zwak':
+    'Strong / soft',
+  'Zwak / sterk':
+    'Soft / strong',
+  'Accent / sterk':
+    'Accent / strong',
+  'Sterk / accent':
+    'Strong / accent',
+  'Accent / zwakst':
+    'Accent / faintest',
+  'Accent / zwak':
+    'Accent / soft',
+  'Achtergrond':
+    'Background',
+  'Een licht accent wordt op een witte achtergrond automatisch donkerder, zodat je keuze leesbaar blijft.':
+    'A light accent is darkened automatically on a white background, so your choice stays readable.',
+  'Donker (wit op zwart)':
+    'Dark (white on black)',
+  'Licht (zwart op wit)':
+    'Light (black on white)',
   'Toon icoon en waarde bij tik': 'Show icon and value on tap',
   'Als je hierboven "Niets" of "Alleen icoon" koos, laat een tik op de pols de verborgen details vijf seconden zien.':
     'If you chose "Nothing" or "Icon only" above, a tap on the wrist shows the hidden details for five seconds.',
   'Uiterlijk': 'Appearance',
   'Accentkleur': 'Accent colour',
-  'Kleuren uren/minuten': 'Hour / minute colours',
-  'Wit / donkergrijs': 'White / dark grey',
-  'Wit / wit': 'White / white',
-  'Wit / lichtgrijs (e-paper)': 'White / light grey (e-paper)',
-  'Lichtgrijs / wit (e-paper)': 'Light grey / white (e-paper)',
-  'Accent / wit': 'Accent / white',
-  'Wit / accent': 'White / accent',
-  'Accent / donkergrijs': 'Accent / dark grey',
-  'Accent / lichtgrijs': 'Accent / light grey',
   'Indeling': 'Layout',
   'Verticaal (uren boven minuten)': 'Vertical (hours above minutes)',
   'Horizontaal (verticale bar)': 'Horizontal (vertical bar)',
@@ -101,20 +120,39 @@ var EN = {
 };
 
 var FR = {
+  'Contrast uren/minuten':
+    'Contraste heures / minutes',
+  'Hoe sterk de uren en de minuten afsteken tegen de achtergrond.':
+    'À quel point les heures et les minutes ressortent sur le fond.',
+  'Sterk / zwakst':
+    'Fort / le plus faible',
+  'Sterk / sterk':
+    'Fort / fort',
+  'Sterk / zwak':
+    'Fort / doux',
+  'Zwak / sterk':
+    'Doux / fort',
+  'Accent / sterk':
+    'Accent / fort',
+  'Sterk / accent':
+    'Fort / accent',
+  'Accent / zwakst':
+    'Accent / le plus faible',
+  'Accent / zwak':
+    'Accent / doux',
+  'Achtergrond':
+    'Arrière-plan',
+  'Een licht accent wordt op een witte achtergrond automatisch donkerder, zodat je keuze leesbaar blijft.':
+    'Une couleur d\'accent claire est assombrie automatiquement sur fond blanc, pour rester lisible.',
+  'Donker (wit op zwart)':
+    'Sombre (blanc sur noir)',
+  'Licht (zwart op wit)':
+    'Clair (noir sur blanc)',
   'Toon icoon en waarde bij tik': 'Afficher l\'icône et la valeur en tapant',
   'Als je hierboven "Niets" of "Alleen icoon" koos, laat een tik op de pols de verborgen details vijf seconden zien.':
-    'Si vous avez choisi Â« Rien Â» ou Â« Icône seule Â» ci-dessus, une tape sur le poignet affiche les détails masqués pendant cinq secondes.',
+    'Si vous avez choisi « Rien » ou « Icône seule » ci-dessus, une tape sur le poignet affiche les détails masqués pendant cinq secondes.',
   'Uiterlijk': 'Apparence',
   'Accentkleur': 'Couleur d\'accent',
-  'Kleuren uren/minuten': 'Couleurs heures / minutes',
-  'Wit / donkergrijs': 'Blanc / gris foncé',
-  'Wit / wit': 'Blanc / blanc',
-  'Wit / lichtgrijs (e-paper)': 'Blanc / gris clair (e-paper)',
-  'Lichtgrijs / wit (e-paper)': 'Gris clair / blanc (e-paper)',
-  'Accent / wit': 'Accent / blanc',
-  'Wit / accent': 'Blanc / accent',
-  'Accent / donkergrijs': 'Accent / gris foncé',
-  'Accent / lichtgrijs': 'Accent / gris clair',
   'Indeling': 'Disposition',
   'Verticaal (uren boven minuten)': 'Vertical (heures au-dessus des minutes)',
   'Horizontaal (verticale bar)': 'Horizontal (barre verticale)',
@@ -184,20 +222,39 @@ var FR = {
 };
 
 var DE = {
+  'Contrast uren/minuten':
+    'Kontrast Stunden / Minuten',
+  'Hoe sterk de uren en de minuten afsteken tegen de achtergrond.':
+    'Wie stark Stunden und Minuten sich vom Hintergrund abheben.',
+  'Sterk / zwakst':
+    'Stark / am schwächsten',
+  'Sterk / sterk':
+    'Stark / stark',
+  'Sterk / zwak':
+    'Stark / sanft',
+  'Zwak / sterk':
+    'Sanft / stark',
+  'Accent / sterk':
+    'Akzent / stark',
+  'Sterk / accent':
+    'Stark / Akzent',
+  'Accent / zwakst':
+    'Akzent / am schwächsten',
+  'Accent / zwak':
+    'Akzent / sanft',
+  'Achtergrond':
+    'Hintergrund',
+  'Een licht accent wordt op een witte achtergrond automatisch donkerder, zodat je keuze leesbaar blijft.':
+    'Eine helle Akzentfarbe wird auf weißem Hintergrund automatisch abgedunkelt, damit sie lesbar bleibt.',
+  'Donker (wit op zwart)':
+    'Dunkel (weiß auf schwarz)',
+  'Licht (zwart op wit)':
+    'Hell (schwarz auf weiß)',
   'Toon icoon en waarde bij tik': 'Symbol und Wert beim Tippen zeigen',
   'Als je hierboven "Niets" of "Alleen icoon" koos, laat een tik op de pols de verborgen details vijf seconden zien.':
     'Wenn du oben „Nichts“ oder „Nur Symbol“ gewählt hast, zeigt ein Tippen aufs Handgelenk die verborgenen Angaben fünf Sekunden lang.',
   'Uiterlijk': 'Erscheinungsbild',
   'Accentkleur': 'Akzentfarbe',
-  'Kleuren uren/minuten': 'Farben Stunden / Minuten',
-  'Wit / donkergrijs': 'Weiß / Dunkelgrau',
-  'Wit / wit': 'Weiß / Weiß',
-  'Wit / lichtgrijs (e-paper)': 'Weiß / Hellgrau (E-Paper)',
-  'Lichtgrijs / wit (e-paper)': 'Hellgrau / Weiß (E-Paper)',
-  'Accent / wit': 'Akzent / Weiß',
-  'Wit / accent': 'Weiß / Akzent',
-  'Accent / donkergrijs': 'Akzent / Dunkelgrau',
-  'Accent / lichtgrijs': 'Akzent / Hellgrau',
   'Indeling': 'Layout',
   'Verticaal (uren boven minuten)': 'Vertikal (Stunden über Minuten)',
   'Horizontaal (verticale bar)': 'Horizontal (vertikaler Balken)',
@@ -267,20 +324,39 @@ var DE = {
 };
 
 var ES = {
+  'Contrast uren/minuten':
+    'Contraste horas / minutos',
+  'Hoe sterk de uren en de minuten afsteken tegen de achtergrond.':
+    'Cuánto destacan las horas y los minutos sobre el fondo.',
+  'Sterk / zwakst':
+    'Fuerte / el más tenue',
+  'Sterk / sterk':
+    'Fuerte / fuerte',
+  'Sterk / zwak':
+    'Fuerte / suave',
+  'Zwak / sterk':
+    'Suave / fuerte',
+  'Accent / sterk':
+    'Acento / fuerte',
+  'Sterk / accent':
+    'Fuerte / acento',
+  'Accent / zwakst':
+    'Acento / el más tenue',
+  'Accent / zwak':
+    'Acento / suave',
+  'Achtergrond':
+    'Fondo',
+  'Een licht accent wordt op een witte achtergrond automatisch donkerder, zodat je keuze leesbaar blijft.':
+    'Un acento claro se oscurece automáticamente sobre fondo blanco, para que siga siendo legible.',
+  'Donker (wit op zwart)':
+    'Oscuro (blanco sobre negro)',
+  'Licht (zwart op wit)':
+    'Claro (negro sobre blanco)',
   'Toon icoon en waarde bij tik': 'Mostrar icono y valor al tocar',
   'Als je hierboven "Niets" of "Alleen icoon" koos, laat een tik op de pols de verborgen details vijf seconden zien.':
     'Si arriba elegiste «Nada» o «Solo icono», un toque en la muñeca muestra los detalles ocultos durante cinco segundos.',
   'Uiterlijk': 'Apariencia',
   'Accentkleur': 'Color de acento',
-  'Kleuren uren/minuten': 'Colores horas / minutos',
-  'Wit / donkergrijs': 'Blanco / gris oscuro',
-  'Wit / wit': 'Blanco / blanco',
-  'Wit / lichtgrijs (e-paper)': 'Blanco / gris claro (e-paper)',
-  'Lichtgrijs / wit (e-paper)': 'Gris claro / blanco (e-paper)',
-  'Accent / wit': 'Acento / blanco',
-  'Wit / accent': 'Blanco / acento',
-  'Accent / donkergrijs': 'Acento / gris oscuro',
-  'Accent / lichtgrijs': 'Acento / gris claro',
   'Indeling': 'Disposición',
   'Verticaal (uren boven minuten)': 'Vertical (horas sobre minutos)',
   'Horizontaal (verticale bar)': 'Horizontal (barra vertical)',

@@ -289,7 +289,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   var dict = clay.getSettings(e.response);
   [keys.LAYOUT_MODE, keys.PROGRESS_TYPE, keys.PROGRESS_TYPE_2, keys.PROGRESS_INFO,
    keys.WIDGET_LEFT, keys.WIDGET_MID, keys.WIDGET_RIGHT, keys.TEMP_UNIT,
-   keys.LANGUAGE, keys.CLOCK_SCHEME, keys.DIST_UNIT, keys.TAP_MODE,
+   keys.LANGUAGE, keys.CLOCK_SCHEME, keys.DIST_UNIT, keys.TAP_MODE, keys.THEME,
    keys.GOAL_STEPS, keys.GOAL_KCAL
   ].forEach(function(key) { toInt(dict, key); });
   resolveDistanceGoal(dict);

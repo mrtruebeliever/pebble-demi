@@ -46,6 +46,74 @@ static int  s_batt_pct = 0;
 static bool s_charging = false;
 static int  s_hr       = 0;
 
+// ---- palette --------------------------------------------------------------
+//
+// Every neutral in the face is drawn through one of these four roles rather
+// than a literal colour, which is what lets the light theme flip the whole
+// face coherently. Naming the role at each call site also means a new
+// complication cannot quietly end up unreadable in one theme: there is no
+// "white" to reach for, only "the strong foreground".
+
+static bool theme_is_light(void) {
+  return config_get()->theme == THEME_LIGHT;
+}
+
+// The window's own background, and the colour to draw a mark in when it lands
+// on top of the accent fill.
+static GColor col_bg(void) {
+  return theme_is_light() ? GColorWhite : GColorBlack;
+}
+
+// Strong foreground: the hour digits, the calendar label, the charging bolt.
+static GColor col_fg(void) {
+  return theme_is_light() ? GColorBlack : GColorWhite;
+}
+
+// Quieter foreground: widget text, status icons, the battery outline — a step
+// down from col_fg without disappearing.
+static GColor col_fg2(void) {
+  return theme_is_light() ? GColorDarkGray : GColorLightGray;
+}
+
+// The unfilled part of a progress track, and the divider above the widget row:
+// present, but never competing with the content.
+static GColor col_track(void) {
+  return theme_is_light() ? GColorLightGray : GColorDarkGray;
+}
+
+// Rough perceived lightness, 0 (black) to 12 (white). Green is weighted double
+// because the eye reads it as much brighter than red or blue at the same value:
+// a plain channel sum calls yellow (3,3,0) and cyan (0,3,3) no lighter than
+// magenta (3,1,3), when on white the first two are the ones that disappear.
+static int color_lightness(GColor c) {
+  return c.r + 2 * c.g + c.b;
+}
+
+// An accent picked against black can be far too pale for white — yellow washes
+// out and a white accent disappears outright. Rather than force a second
+// colour setting on the wearer, the light theme darkens an accent one step per
+// channel, but only when it is actually too bright to read. Dark accents pass
+// through untouched, so most choices look the same in both themes.
+// Of the twelve palette swatches this leaves blue, red, mint and cyan-ish
+// greens alone, and darkens white, yellow, cyan, spring green, orange, pink,
+// purple and magenta — which is the split you get by eye on a white ground.
+#define ACCENT_MAX_LIGHTNESS_ON_LIGHT 6
+
+static GColor themed_accent(GColor c) {
+  if (!theme_is_light() || color_lightness(c) <= ACCENT_MAX_LIGHTNESS_ON_LIGHT) {
+    return c;
+  }
+  GColor out = c;
+  out.r = c.r > 0 ? c.r - 1 : 0;
+  out.g = c.g > 0 ? c.g - 1 : 0;
+  out.b = c.b > 0 ? c.b - 1 : 0;
+  // A neutral accent (white) darkens to light gray, which is no better against
+  // white than it started; greys have no hue to preserve, so take them all the
+  // way down to a readable one.
+  if (c.r == c.g && c.g == c.b) return GColorDarkGray;
+  return out;
+}
+
 // ---- helpers --------------------------------------------------------------
 
 // gdraw_command_list_iterate callback: render the official line-art icons as a
@@ -221,7 +289,7 @@ static void draw_bar_marks(GContext *ctx, const BarMarks *marks, int fill_pct,
                            bool swapped, GRect track, bool vertical) {
   for (int i = 0; i < marks->count; i++) {
     graphics_context_set_fill_color(
-        ctx, marks->pct[i] <= fill_pct ? GColorBlack : GColorLightGray);
+        ctx, marks->pct[i] <= fill_pct ? col_bg() : col_fg2());
     if (vertical) {
       int off = track.size.h * marks->pct[i] / 100;
       int y = swapped ? track.origin.y + track.size.h - off : track.origin.y + off;
@@ -307,7 +375,7 @@ static void draw_calendar_box(GContext *ctx, int x, int cy, const char *label, G
   graphics_draw_round_rect(ctx, GRect(x, top, CAL_W, CAL_H), 3);
   graphics_fill_rect(ctx, GRect(x + 1, top + 1, CAL_W - 2, 3), 0, GCornerNone);
 
-  graphics_context_set_text_color(ctx, GColorWhite);
+  graphics_context_set_text_color(ctx, col_fg());
   // GOTHIC has top padding; pull the label up so it sits centered in the body.
   graphics_draw_text(ctx, label, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                      GRect(x, top - 2, CAL_W, CAL_H),
@@ -443,17 +511,17 @@ static void compute_progress(int type, GColor accent, int *pct, char *buf, size_
 // Draws the big hours (white, bold, top) and minutes (gray, light, bottom).
 // Maps the configured clock scheme to its hour and minute fill colors.
 static void clock_scheme_colors(int scheme, GColor *hours, GColor *minutes) {
-  GColor accent = config_get()->accent_color;
+  GColor accent = themed_accent(config_get()->accent_color);
   switch (scheme) {
-    case CLOCK_SCHEME_WHITE_WHITE:  *hours = GColorWhite;     *minutes = GColorWhite;     break;
-    case CLOCK_SCHEME_WHITE_LIGHT:  *hours = GColorWhite;     *minutes = GColorLightGray; break;
-    case CLOCK_SCHEME_LIGHT_WHITE:  *hours = GColorLightGray; *minutes = GColorWhite;     break;
-    case CLOCK_SCHEME_ACCENT_WHITE: *hours = accent;          *minutes = GColorWhite;     break;
-    case CLOCK_SCHEME_WHITE_ACCENT: *hours = GColorWhite;     *minutes = accent;          break;
-    case CLOCK_SCHEME_ACCENT_GRAY:  *hours = accent;          *minutes = GColorDarkGray;  break;
-    case CLOCK_SCHEME_ACCENT_LIGHT: *hours = accent;          *minutes = GColorLightGray; break;
+    case CLOCK_SCHEME_WHITE_WHITE:  *hours = col_fg();     *minutes = col_fg();     break;
+    case CLOCK_SCHEME_WHITE_LIGHT:  *hours = col_fg();     *minutes = col_fg2();    break;
+    case CLOCK_SCHEME_LIGHT_WHITE:  *hours = col_fg2();    *minutes = col_fg();     break;
+    case CLOCK_SCHEME_ACCENT_WHITE: *hours = accent;       *minutes = col_fg();     break;
+    case CLOCK_SCHEME_WHITE_ACCENT: *hours = col_fg();     *minutes = accent;       break;
+    case CLOCK_SCHEME_ACCENT_GRAY:  *hours = accent;       *minutes = col_track();  break;
+    case CLOCK_SCHEME_ACCENT_LIGHT: *hours = accent;       *minutes = col_fg2();    break;
     case CLOCK_SCHEME_WHITE_GRAY:
-    default:                        *hours = GColorWhite;     *minutes = GColorDarkGray;  break;
+    default:                        *hours = col_fg();     *minutes = col_track();  break;
   }
 }
 
@@ -596,7 +664,7 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
 
   // AM/PM indicator (12h mode): raster font, so it waits until FCTX is done.
   if (s_ampm[0] && ampm.size.w > 0) {
-    graphics_context_set_text_color(ctx, GColorLightGray);
+    graphics_context_set_text_color(ctx, col_fg2());
     graphics_draw_text(ctx, s_ampm, s_font20, ampm, GTextOverflowModeFill, ampm_align, NULL);
   }
 }
@@ -648,7 +716,7 @@ static void draw_bar_horizontal(GContext *ctx, GRect b, GColor accent, int pct, 
   int track_w = track_right - track_x;
   if (track_w < 0) track_w = 0;
 
-  graphics_context_set_fill_color(ctx, GColorDarkGray);
+  graphics_context_set_fill_color(ctx, col_track());
   graphics_fill_rect(ctx, GRect(track_x, cy - 3, track_w, 6), 3, GCornersAll);
 
   // The fill grows away from the icon, so swapping the icon over also flips
@@ -699,7 +767,7 @@ static void draw_bar_vertical(GContext *ctx, GRect b, GColor accent, int pct, co
   int track_h = b.size.h - 2 * side;
   if (track_h < 0) track_h = 0;
 
-  graphics_context_set_fill_color(ctx, GColorDarkGray);
+  graphics_context_set_fill_color(ctx, col_track());
   graphics_fill_rect(ctx, GRect(cx - VBAR_HALF_W, side, VBAR_HALF_W * 2, track_h), 3, GCornersAll);
 
   // Fills away from the icon, mirroring the horizontal bar: top-down normally,
@@ -754,8 +822,9 @@ static void progress_update_proc(Layer *layer, GContext *ctx) {
 
   // The second bar only takes its own color once that is switched on, so
   // changing the main accent doesn't leave it stranded on an old hue.
-  GColor accent = cfg->accent_color;
-  GColor accent_2 = cfg->accent_2_enable ? cfg->accent_color_2 : cfg->accent_color;
+  GColor accent = themed_accent(cfg->accent_color);
+  GColor accent_2 = themed_accent(cfg->accent_2_enable ? cfg->accent_color_2
+                                                       : cfg->accent_color);
 
   switch (cfg->layout_mode) {
     case LAYOUT_HORIZONTAL:
@@ -783,15 +852,22 @@ static void progress_update_proc(Layer *layer, GContext *ctx) {
 
 // Selects the icon and color for a weather condition code.
 static GDrawCommandImage *weather_icon(int cond, GColor *color) {
+  // The dark theme's hues were chosen against black: chrome yellow and celeste
+  // are near-invisible on white, so the light theme takes deeper equivalents of
+  // the same three families rather than a different palette.
+  bool light = theme_is_light();
+  GColor sunny = light ? GColorWindsorTan : GColorChromeYellow;
+  GColor blue  = light ? GColorCobaltBlue : GColorPictonBlue;
+  GColor snow  = light ? GColorBlueMoon   : GColorCeleste;
   switch (cond) {
-    case WEATHER_SUN:        *color = GColorChromeYellow; return s_img_sun;
-    case WEATHER_PARTLY:     *color = GColorPictonBlue;   return s_img_partly;
-    case WEATHER_CLOUD:      *color = GColorPictonBlue;   return s_img_cloud;
-    case WEATHER_LIGHT_RAIN: *color = GColorPictonBlue;   return s_img_lrain;
-    case WEATHER_HEAVY_RAIN: *color = GColorPictonBlue;   return s_img_hrain;
-    case WEATHER_LIGHT_SNOW: *color = GColorCeleste;      return s_img_lsnow;
-    case WEATHER_HEAVY_SNOW: *color = GColorCeleste;      return s_img_hsnow;
-    default:                 *color = GColorPictonBlue;   return s_img_cloud;
+    case WEATHER_SUN:        *color = sunny; return s_img_sun;
+    case WEATHER_PARTLY:     *color = blue;  return s_img_partly;
+    case WEATHER_CLOUD:      *color = blue;  return s_img_cloud;
+    case WEATHER_LIGHT_RAIN: *color = blue;  return s_img_lrain;
+    case WEATHER_HEAVY_RAIN: *color = blue;  return s_img_hrain;
+    case WEATHER_LIGHT_SNOW: *color = snow;  return s_img_lsnow;
+    case WEATHER_HEAVY_SNOW: *color = snow;  return s_img_hsnow;
+    default:                 *color = blue;  return s_img_cloud;
   }
 }
 
@@ -895,14 +971,14 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       char da[3] = { s_day[0], s_day[1], 0 };
       GSize daw = graphics_text_layout_get_content_size(da, s_font20, GRect(0, 0, 40, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
-      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_context_set_text_color(ctx, col_fg2());
       graphics_draw_text(ctx, da, s_font20, GRect(x, ty, daw.w, 22),
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       x += daw.w + 5;
 
       char dn[4];
       snprintf(dn, sizeof(dn), "%d", s_mday);
-      draw_calendar_box(ctx, x, cy, dn, cfg->accent_color);
+      draw_calendar_box(ctx, x, cy, dn, themed_accent(cfg->accent_color));
       break;
     }
     case WIDGET_WEATHER: {
@@ -911,14 +987,14 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
       GColor wc;
       GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
-      if (cfg->weather_accent) wc = cfg->accent_color;
+      if (cfg->weather_accent) wc = themed_accent(cfg->accent_color);
       if (!wi) break;
       GSize sz = gdraw_command_image_get_bounds_size(wi);
       draw_pdc(ctx, wi, GPoint(x, cy - sz.h / 2), wc);
       x += sz.w + 1;
       GSize vw = graphics_text_layout_get_content_size(ws, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
-      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_context_set_text_color(ctx, col_fg2());
       graphics_draw_text(ctx, ws, s_font20, GRect(x, ty, vw.w, 22),
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       break;
@@ -933,7 +1009,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       x += sz.w + 1;
       GSize vw = graphics_text_layout_get_content_size(hs, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
-      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_context_set_text_color(ctx, col_fg2());
       graphics_draw_text(ctx, hs, s_font20, GRect(x, ty, vw.w, 22),
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       break;
@@ -949,11 +1025,12 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       GDrawCommandImage *si = is_rise ? s_img_sunrise : s_img_sunset;
       if (!si) break;
       GSize sz = gdraw_command_image_get_bounds_size(si);
-      draw_pdc(ctx, si, GPoint(x, cy - sz.h / 2), GColorChromeYellow);
+      draw_pdc(ctx, si, GPoint(x, cy - sz.h / 2),
+               theme_is_light() ? GColorWindsorTan : GColorChromeYellow);
       x += sz.w + 1;
       GSize vw = graphics_text_layout_get_content_size(ss, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
-      graphics_context_set_text_color(ctx, GColorLightGray);
+      graphics_context_set_text_color(ctx, col_fg2());
       graphics_draw_text(ctx, ss, s_font20, GRect(x, ty, vw.w, 22),
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       break;
@@ -961,10 +1038,10 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
     case WIDGET_BATTERY: {
       // Battery body outline + nub, filled proportionally to the charge level.
       int top = cy - BATT_H / 2;
-      GColor fill = (s_batt_pct < 20) ? GColorRed : cfg->accent_color;
-      graphics_context_set_stroke_color(ctx, GColorLightGray);
+      GColor fill = (s_batt_pct < 20) ? GColorRed : themed_accent(cfg->accent_color);
+      graphics_context_set_stroke_color(ctx, col_fg2());
       graphics_draw_round_rect(ctx, GRect(x, top, BATT_BODY_W, BATT_H), 2);
-      graphics_context_set_fill_color(ctx, GColorLightGray);
+      graphics_context_set_fill_color(ctx, col_fg2());
       graphics_fill_rect(ctx, GRect(x + BATT_BODY_W, cy - 3, BATT_NUB_W, 6), 0, GCornerNone);
 
       int inner_w = BATT_BODY_W - 4;
@@ -979,7 +1056,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       if (s_charging) {
         // A small lightning bolt across the body.
         int mx = x + BATT_BODY_W / 2;
-        graphics_context_set_stroke_color(ctx, GColorWhite);
+        graphics_context_set_stroke_color(ctx, col_fg());
         graphics_draw_line(ctx, GPoint(mx + 2, top + 2), GPoint(mx - 2, cy));
         graphics_draw_line(ctx, GPoint(mx - 2, cy), GPoint(mx + 2, cy));
         graphics_draw_line(ctx, GPoint(mx + 2, cy), GPoint(mx - 2, top + BATT_H - 2));
@@ -992,7 +1069,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
         int tx = x + BATT_BODY_W + BATT_NUB_W + 3;
         GSize vw = graphics_text_layout_get_content_size(bs, s_font20, GRect(0, 0, 60, 22),
                                                          GTextOverflowModeFill, GTextAlignmentLeft);
-        graphics_context_set_text_color(ctx, (s_batt_pct < 20) ? GColorRed : GColorLightGray);
+        graphics_context_set_text_color(ctx, (s_batt_pct < 20) ? GColorRed : col_fg2());
         graphics_draw_text(ctx, bs, s_font20, GRect(tx, ty, vw.w, 22),
                            GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       }
@@ -1015,14 +1092,14 @@ static void bottom_update_proc(Layer *layer, GContext *ctx) {
   const int gap = 6;
 
   // Top divider.
-  graphics_context_set_stroke_color(ctx, GColorDarkGray);
+  graphics_context_set_stroke_color(ctx, col_track());
   graphics_draw_line(ctx, GPoint(0, 0), GPoint(W, 0));
 
   // A tap reveal takes the whole row for its few seconds rather than squeezing
   // in beside the widgets, which have no room to spare.
   if (s_revealing && cfg->tap_mode != TAP_OFF) {
     const char *text = (cfg->tap_mode == TAP_DATE) ? s_full_date : s_seconds;
-    graphics_context_set_text_color(ctx, cfg->accent_color);
+    graphics_context_set_text_color(ctx, themed_accent(cfg->accent_color));
     graphics_draw_text(ctx, text, s_font20, GRect(0, ty, W, 22),
                        GTextOverflowModeFill, GTextAlignmentCenter, NULL);
     return;
@@ -1058,12 +1135,12 @@ static void status_update_proc(Layer *layer, GContext *ctx) {
   GRect b = layer_get_bounds(layer);
 
   if (quiet_time_is_active() && s_img_quiet) {
-    draw_pdc(ctx, s_img_quiet, GPoint(4, 3), GColorLightGray);
+    draw_pdc(ctx, s_img_quiet, GPoint(4, 3), col_fg2());
   }
 
   if (!connection_service_peek_pebble_app_connection() && s_img_bt_off) {
     GSize sz = gdraw_command_image_get_bounds_size(s_img_bt_off);
-    draw_pdc(ctx, s_img_bt_off, GPoint(b.size.w - 4 - sz.w, 3), GColorLightGray);
+    draw_pdc(ctx, s_img_bt_off, GPoint(b.size.w - 4 - sz.w, 3), col_fg2());
   }
 }
 
@@ -1085,6 +1162,8 @@ static void redraw_all(void) {
     // Turning taps on or off in settings takes effect straight away, rather
     // than at the next launch.
     apply_tap_subscription();
+    // The theme repaints the window itself, not just the layers drawn on it.
+    window_set_background_color(s_window, col_bg());
   }
   if (s_clock_layer)    layer_mark_dirty(s_clock_layer);
   if (s_progress_layer) layer_mark_dirty(s_progress_layer);
@@ -1403,7 +1482,7 @@ static void init(void) {
   config_set_change_callback(redraw_all);
 
   s_window = window_create();
-  window_set_background_color(s_window, GColorBlack);
+  window_set_background_color(s_window, col_bg());
   window_set_window_handlers(s_window, (WindowHandlers){
     .load = window_load,
     .unload = window_unload,

@@ -145,6 +145,7 @@ void config_load(void) {
   s_config.pace_mark         = DEFAULT_PACE_MARK;
   s_config.tap_mode          = DEFAULT_TAP_MODE;
   s_config.tap_bars          = DEFAULT_TAP_BARS;
+  s_config.theme             = DEFAULT_THEME;
   s_config.weather_temp      = WEATHER_TEMP_NONE;
   s_config.weather_condition = WEATHER_COND_NONE;
   s_config.sunrise           = SUN_TIME_NONE;
@@ -259,6 +260,9 @@ void config_load(void) {
   if (persist_exists(PERSIST_TAP_BARS)) {
     s_config.tap_bars = persist_read_bool(PERSIST_TAP_BARS);
   }
+  if (persist_exists(PERSIST_THEME)) {
+    set_enum(&s_config.theme, persist_read_int(PERSIST_THEME), THEME_COUNT);
+  }
   // LANG_AUTO (the default) and any stale out-of-range value both resolve to
   // the watch's own locale rather than to a fixed language.
   set_lang(&s_config.language,
@@ -301,6 +305,7 @@ void config_save(void) {
   persist_write_bool(PERSIST_PACE_MARK, s_config.pace_mark);
   persist_write_int(PERSIST_TAP_MODE, s_config.tap_mode);
   persist_write_bool(PERSIST_TAP_BARS, s_config.tap_bars);
+  persist_write_int(PERSIST_THEME, s_config.theme);
   persist_write_int(PERSIST_LANGUAGE, s_lang_pref);   // keep AUTO as AUTO
   persist_write_int(PERSIST_CLOCK_SCHEME, s_config.clock_scheme);
   persist_write_bool(PERSIST_CLOCK_24H, s_config.clock_24h);
@@ -414,6 +419,10 @@ void config_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_TAP_BARS))) {
     s_config.tap_bars = (tuple_int(t) != 0);
+    settings_changed = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_THEME))) {
+    set_enum(&s_config.theme, tuple_int(t), THEME_COUNT);
     settings_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_LANGUAGE))) {

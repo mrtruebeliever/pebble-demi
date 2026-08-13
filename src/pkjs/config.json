@@ -5,6 +5,17 @@
     "items": [
       { "type": "heading", "defaultValue": "Uiterlijk" },
       {
+        "type": "select",
+        "messageKey": "THEME",
+        "label": "Achtergrond",
+        "description": "Een licht accent wordt op een witte achtergrond automatisch donkerder, zodat je keuze leesbaar blijft.",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Donker (wit op zwart)", "value": "0" },
+          { "label": "Licht (zwart op wit)", "value": "1" }
+        ]
+      },
+      {
         "type": "color",
         "messageKey": "ACCENT_COLOR",
         "label": "Accentkleur",
@@ -20,17 +31,18 @@
       {
         "type": "select",
         "messageKey": "CLOCK_SCHEME",
-        "label": "Kleuren uren/minuten",
+        "label": "Contrast uren/minuten",
+        "description": "Hoe sterk de uren en de minuten afsteken tegen de achtergrond.",
         "defaultValue": "2",
         "options": [
-          { "label": "Wit / donkergrijs", "value": "0" },
-          { "label": "Wit / wit", "value": "1" },
-          { "label": "Wit / lichtgrijs (e-paper)", "value": "2" },
-          { "label": "Lichtgrijs / wit (e-paper)", "value": "3" },
-          { "label": "Accent / wit", "value": "4" },
-          { "label": "Wit / accent", "value": "5" },
-          { "label": "Accent / donkergrijs", "value": "6" },
-          { "label": "Accent / lichtgrijs", "value": "7" }
+          { "label": "Sterk / zwakst", "value": "0" },
+          { "label": "Sterk / sterk", "value": "1" },
+          { "label": "Sterk / zwak", "value": "2" },
+          { "label": "Zwak / sterk", "value": "3" },
+          { "label": "Accent / sterk", "value": "4" },
+          { "label": "Sterk / accent", "value": "5" },
+          { "label": "Accent / zwakst", "value": "6" },
+          { "label": "Accent / zwak", "value": "7" }
         ]
       },
       {

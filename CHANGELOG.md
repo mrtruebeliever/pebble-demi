@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.7.0
+
+- **Light theme.** A background setting flips the whole face to black on white.
+  Every neutral is now drawn through one of four named roles — background,
+  strong foreground, quiet foreground, track — rather than a literal colour, so
+  each complication states what it means rather than what colour it happens to
+  be, and none of them can quietly turn unreadable in one theme.
+- **A light accent is darkened automatically on white, but only when it needs to
+  be.** A white accent would otherwise vanish outright and yellow would wash
+  out. Lightness is weighted towards green, which is why yellow and cyan get
+  darkened while red and blue pass through untouched. Dark accents look the same
+  in both themes, and nothing about your stored colour changes — so switching
+  back to the dark theme restores exactly what you had.
+- Weather icons take deeper hues on the light theme: chrome yellow and celeste
+  were chosen against black and are near-invisible on white.
+- The eight clock schemes are renamed from colours to contrast — "Strong /
+  soft" instead of "White / light grey" — because a colour name is wrong half
+  the time once there are two themes. The stored values are unchanged, so your
+  current choice carries over.
+
 ## 1.6.0
 
 - **Sunrise and sunset.** A new bottom-row widget shows whichever comes next —

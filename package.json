@@ -1,7 +1,7 @@
 {
   "name": "demi",
   "author": "mrtruebeliever",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "license": "MIT",
   "keywords": [
     "pebble-app"
@@ -62,7 +62,8 @@
       "DIST_UNIT",
       "PACE_MARK",
       "TAP_MODE",
-      "TAP_BARS"
+      "TAP_BARS",
+      "THEME"
     ],
     "resources": {
       "media": [

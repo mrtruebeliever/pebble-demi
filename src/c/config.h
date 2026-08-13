@@ -37,6 +37,7 @@
 #define PERSIST_PACE_MARK       37
 #define PERSIST_TAP_MODE        38
 #define PERSIST_TAP_BARS        39
+#define PERSIST_THEME           40
 
 // Layout modes: hours above minutes with a horizontal bar between them, hours
 // beside minutes split by a vertical bar, or hours beside minutes framed by two
@@ -94,6 +95,14 @@
 // Stored custom values older than this are discarded on load and treated as
 // absent, same reasoning as WEATHER_MAX_AGE_S.
 #define CUSTOM_MAX_AGE_S  (3 * 60 * 60)
+
+// Background theme. Every neutral in the face is drawn through a role rather
+// than a literal colour (see the col_* helpers in demi.c), so this flips the
+// whole face without touching a single icon: the PDCs are recoloured at draw
+// time anyway.
+#define THEME_DARK   0   // white on black, as Demi has always been
+#define THEME_LIGHT  1   // black on white
+#define THEME_COUNT  2
 
 // Temperature units.
 #define TEMP_CELSIUS     0
@@ -219,6 +228,7 @@
 // Off by default: tapping costs nothing, but an unexpected reveal on every
 // knock is worse than a feature the user never asked for.
 #define DEFAULT_TAP_MODE       TAP_OFF
+#define DEFAULT_THEME          THEME_DARK
 
 // All user-configurable state plus the latest weather snapshot.
 typedef struct {
@@ -246,6 +256,7 @@ typedef struct {
   bool   pace_mark;      // draw "where you normally are by now" on the track
   int    tap_mode;       // TAP_OFF / TAP_SECONDS / TAP_DATE
   bool   tap_bars;       // a tap also reveals the bars' icon + value
+  int    theme;          // THEME_DARK / THEME_LIGHT
   int    weather_temp;       // WEATHER_TEMP_NONE until first fetch
   int    weather_condition;  // WEATHER_SUN / WEATHER_CLOUD / WEATHER_RAIN
   int    sunrise;            // minutes since local midnight, SUN_TIME_NONE if unknown

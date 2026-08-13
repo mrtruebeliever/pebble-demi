@@ -55,8 +55,9 @@ Open the watchface settings in the Pebble app to configure:
 
 | Setting | Options |
 | --- | --- |
+| **Background** | Dark (white on black) / Light (black on white) — default dark |
 | **Accent color** | 12-swatch palette: green, mint, cyan, blue, indigo, purple, magenta, pink, red, orange, yellow, white |
-| **Hour/minute colors** | white–darkgrey, white–white, white–lightgrey (e-paper), lightgrey–white (e-paper), **accent–white, white–accent, accent–darkgrey, accent–lightgrey** (accent variants track the chosen accent color) |
+| **Hour/minute contrast** | strong–faintest, strong–strong, strong–soft, soft–strong, **accent–strong, strong–accent, accent–faintest, accent–soft** (accent variants track the chosen accent color) — named by contrast rather than colour, since both themes use the same eight |
 | **24-hour clock** | on (24h) / off (12h with AM/PM label beside the hour, or below it in the horizontal layout) — default 24h |
 | **Layout** | Vertical (hours above minutes) / Horizontal, vertical bar / Horizontal, two bars — default vertical |
 | **Progress bar** | Steps / Battery / Calories / Distance / Custom 1 / Custom 2 / Daylight / Day, week, month or year elapsed |
@@ -78,6 +79,41 @@ Open the watchface settings in the Pebble app to configure:
 The **battery** widget is a graphical glyph filled proportionally to the charge level
 (accent fill, red below 20%, lightning bolt while charging), optionally followed by the
 percentage. The middle slot is skipped automatically if it would overlap a neighbour.
+
+## Themes
+
+![Light theme](demi_light.png)
+
+*The light theme, same face and same accent: the spring green is darkened just enough to
+hold against white, the track and the widget-row divider swap to light grey, and the sunrise
+marks on the day bar stay legible on both halves of the bar.*
+
+The **background** setting flips the face between white-on-black and black-on-white. Rather
+than inverting colours at draw time, every neutral is drawn through one of four named roles:
+
+| role | dark | light | used by |
+| --- | --- | --- | --- |
+| background | black | white | the window, and a bar mark that lands on the accent fill |
+| strong foreground | white | black | hour digits, the calendar label, the charging bolt |
+| quiet foreground | light grey | dark grey | widget text, status icons, the battery outline |
+| track | dark grey | light grey | the unfilled part of a bar, the widget-row divider |
+
+Naming the role at each call site is what keeps the complications honest: there is no
+"white" to reach for, only "the strong foreground", so a new complication cannot end up
+unreadable in one theme by accident. The icons need no second set — they are PDC line art
+recoloured at draw time.
+
+**Accent colours are darkened on the light theme, but only when they need it.** The
+12-swatch palette was chosen against black: a white accent would disappear on white and
+yellow would wash out. `themed_accent()` measures lightness with green weighted double —
+which is why yellow (3,3,0) and cyan (0,3,3) count as light while magenta (3,1,3) does not —
+and steps each channel down once when it exceeds the threshold, taking a neutral all the way
+to dark grey since a grey has no hue worth preserving. Blue, red and the darker greens pass
+through untouched, so most faces look identical in both themes. Nothing is written back to
+your stored colour, so switching themes is always reversible.
+
+Weather icons swap hue as well: chrome yellow and celeste read well on black and vanish on
+white, so the light theme uses Windsor tan, cobalt blue and blue moon instead.
 
 ## Status icons
 
