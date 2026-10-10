@@ -7,11 +7,13 @@ Bold vector digits with progress bars for steps, daylight, battery or your own J
 
 **Full description:**
 
-Demi is a configurable watchface for the Pebble Time 2, built around large
+Demi is a configurable watchface for the Pebble Time 2 (also built for the
+Pebble Round 2 and Pebble 2 Duo), built around large
 anti-aliased vector digits and progress bars that stay out of the way until you
 need them. Track steps, calories, distance, battery, how much daylight is left,
 how much of the week has gone, or your own JSON feed. Round out the bottom row
-with date, weather, sunrise/sunset, battery or heart rate — pick any three.
+with date, weather, sunrise/sunset, battery, heart rate or your next alarm —
+pick any three.
 
 Dark or light: the whole face flips between white-on-black and black-on-white,
 and a light accent colour is darkened automatically on white so your choice
@@ -40,7 +42,8 @@ FEATURES
   bare still gives up its numbers on demand.
 • Tap to see the seconds or the full date, without leaving the watchface.
 • Three configurable bottom-row widgets (left/middle/right): date, weather,
-  sunrise/sunset, battery (graphical glyph + %), or heart rate.
+  sunrise/sunset, battery (graphical glyph + %), heart rate, or the next
+  alarm within 24 hours.
 • 12-colour accent palette, 8 hour/minute contrast schemes including
   accent-tinted variants tuned for e-paper.
 • Metric or imperial: distance follows your watch's own measurement setting,

@@ -1,14 +1,14 @@
 {
   "name": "demi",
   "author": "mrtruebeliever",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "license": "MIT",
   "keywords": [
     "pebble-app"
   ],
   "private": true,
   "dependencies": {
-    "pebble-clay": "^1.0.4",
+    "@rebble/clay": "^1.1.0",
     "pebble-fctx": "^1.6.5"
   },
   "pebble": {
@@ -22,7 +22,9 @@
       "configurable"
     ],
     "targetPlatforms": [
-      "emery"
+      "emery",
+      "gabbro",
+      "flint"
     ],
     "watchapp": {
       "watchface": true
@@ -169,6 +171,11 @@
           "type": "raw",
           "name": "IMG_SUNRISE",
           "file": "icons/sunrise.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "IMG_ALARM",
+          "file": "icons/alarm.pdc"
         },
         {
           "type": "raw",

@@ -17,7 +17,7 @@
       },
       {
         "type": "color",
-        "messageKey": "ACCENT_COLOR",
+        "messageKey": "ACCENT_COLOR", "capabilities": ["COLOR"],
         "label": "Accentkleur",
         "defaultValue": "00ff7f",
         "sunlight": false,
@@ -30,7 +30,7 @@
       },
       {
         "type": "select",
-        "messageKey": "CLOCK_SCHEME",
+        "messageKey": "CLOCK_SCHEME", "capabilities": ["COLOR"],
         "label": "Contrast uren/minuten",
         "description": "Hoe sterk de uren en de minuten afsteken tegen de achtergrond.",
         "defaultValue": "2",
@@ -127,10 +127,10 @@
       { "type": "toggle", "messageKey": "PROGRESS_SWAP", "label": "Icoon en waarde omwisselen", "defaultValue": false },
       { "type": "toggle", "messageKey": "TAP_BARS", "label": "Toon icoon en waarde bij tik", "description": "Als je hierboven \"Niets\" of \"Alleen icoon\" koos, laat een tik op de pols de verborgen details vijf seconden zien.", "defaultValue": false },
       { "type": "toggle", "messageKey": "PACE_MARK", "label": "Toon mijn normale tempo", "description": "Zet een streepje op de bar waar je op dit tijdstip meestal staat. Alleen bij stappen, calorieën en afstand.", "defaultValue": false },
-      { "type": "toggle", "messageKey": "ACCENT_2_ENABLE", "label": "Tweede bar eigen kleur", "defaultValue": false },
+      { "type": "toggle", "messageKey": "ACCENT_2_ENABLE", "capabilities": ["COLOR"], "label": "Tweede bar eigen kleur", "defaultValue": false },
       {
         "type": "color",
-        "messageKey": "ACCENT_COLOR_2",
+        "messageKey": "ACCENT_COLOR_2", "capabilities": ["COLOR"],
         "label": "Kleur tweede bar",
         "defaultValue": "00ffff",
         "sunlight": false,
@@ -205,7 +205,8 @@
           { "label": "Weer", "value": "2" },
           { "label": "Batterij", "value": "3" },
           { "label": "Hartslag", "value": "4" },
-          { "label": "Zon op/onder", "value": "5" }
+          { "label": "Zon op/onder", "value": "5" },
+          { "label": "Volgende wekker", "value": "6" }
         ]
       },
       {
@@ -219,7 +220,8 @@
           { "label": "Weer", "value": "2" },
           { "label": "Batterij", "value": "3" },
           { "label": "Hartslag", "value": "4" },
-          { "label": "Zon op/onder", "value": "5" }
+          { "label": "Zon op/onder", "value": "5" },
+          { "label": "Volgende wekker", "value": "6" }
         ]
       },
       {
@@ -233,7 +235,8 @@
           { "label": "Weer", "value": "2" },
           { "label": "Batterij", "value": "3" },
           { "label": "Hartslag", "value": "4" },
-          { "label": "Zon op/onder", "value": "5" }
+          { "label": "Zon op/onder", "value": "5" },
+          { "label": "Volgende wekker", "value": "6" }
         ]
       },
       { "type": "toggle", "messageKey": "BATTERY_PCT", "label": "Toon batterijpercentage", "defaultValue": true }
@@ -287,7 +290,7 @@
           { "label": "Fahrenheit", "value": "1" }
         ]
       },
-      { "type": "toggle", "messageKey": "WEATHER_ACCENT", "label": "Weericoon in accentkleur", "defaultValue": false }
+      { "type": "toggle", "messageKey": "WEATHER_ACCENT", "capabilities": ["COLOR"], "label": "Weericoon in accentkleur", "defaultValue": false }
     ]
   },
   { "type": "submit", "defaultValue": "Opslaan" }

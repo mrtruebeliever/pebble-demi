@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.8.0
+
+- **Next-alarm widget.** A new choice for the bottom slots shows the official
+  PebbleOS alarm-clock icon in the accent colour and the time of the next
+  enabled alarm, read from the watch with `alarm_service_peek_next()`. Only an
+  alarm within the next 24 hours is shown, so a bare time never stands for a
+  day further out; with none, the slot stays empty. A 12-hour clock adds
+  "a"/"p", since an alarm, unlike a sunrise, can fall either side of noon.
+- **Pebble Round 2 (`gabbro`) and Pebble 2 Duo (`flint`).** On the round screen
+  the face is pulled in off the top and bottom, and every band that reaches for
+  the sides — the status icons, the widget row, a bar's icon and value — is
+  narrowed to the circle's width at that height. On black-and-white, colour and
+  grey would land on black or a checkerboard dither, so the accent, the second
+  foreground and the clock schemes all draw in the strong foreground, and the
+  colour-only settings are hidden from the settings page on that watch.
+- FCTX draws in screen coordinates, so the clock now adds its layer's position
+  to every offset; it had only worked because the layer started at the corner.
+- Settings page moved from `pebble-clay` (2016, no new platforms) to
+  `@rebble/clay` 1.1.
+- Widget buffers widened so the new compiler's truncation warnings are gone.
+
 ## 1.7.0
 
 - **Light theme.** A background setting flips the whole face to black on white.

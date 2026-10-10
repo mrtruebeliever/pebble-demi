@@ -20,6 +20,7 @@ static GDrawCommandImage *s_img_lrain, *s_img_hrain, *s_img_lsnow, *s_img_hsnow;
 static GDrawCommandImage *s_img_quiet, *s_img_bt_off;  // status-row icons
 static GDrawCommandImage *s_img_gauge, *s_img_claude_session, *s_img_claude_week;  // custom-metric icons
 static GDrawCommandImage *s_img_sunrise, *s_img_sunset;      // next-sun-event icons
+static GDrawCommandImage *s_img_alarm;                       // next-alarm widget
 static GDrawCommandImage *s_img_duration;                    // day-elapsed bar icon
 
 // Hidden during a Timeline Quick View slide to reduce clutter.
@@ -70,9 +71,21 @@ static GColor col_fg(void) {
 }
 
 // Quieter foreground: widget text, status icons, the battery outline — a step
-// down from col_fg without disappearing.
+// down from col_fg without disappearing. A black-and-white screen has no step
+// down: grey dithers into a checkerboard that breaks up text and line art.
 static GColor col_fg2(void) {
+#if defined(PBL_BW)
+  return col_fg();
+#else
   return theme_is_light() ? GColorDarkGray : GColorLightGray;
+#endif
+}
+
+// What a hue becomes on screen. On black-and-white every colour collapses to
+// whichever of black or white is nearest, which can be the background itself,
+// so anything coloured is drawn as the strong foreground instead.
+static GColor ink(GColor c) {
+  return PBL_IF_COLOR_ELSE(c, col_fg());
 }
 
 // The unfilled part of a progress track, and the divider above the widget row:
@@ -100,6 +113,7 @@ static int color_lightness(GColor c) {
 #define ACCENT_MAX_LIGHTNESS_ON_LIGHT 6
 
 static GColor themed_accent(GColor c) {
+  if (!PBL_IF_COLOR_ELSE(true, false)) return ink(c);
   if (!theme_is_light() || color_lightness(c) <= ACCENT_MAX_LIGHTNESS_ON_LIGHT) {
     return c;
   }
@@ -133,6 +147,51 @@ static void draw_pdc(GContext *ctx, GDrawCommandImage *img, GPoint origin, GColo
   GDrawCommandList *list = gdraw_command_image_get_command_list(img);
   gdraw_command_list_iterate(list, recolor_iter, &color);
   gdraw_command_image_draw(ctx, img, origin);
+}
+
+// ---- round display --------------------------------------------------------
+//
+// The layout is drawn for a rectangle. On a round screen it is first pulled in
+// off the top and bottom (ROUND_INSET_*), and then every horizontal band that
+// reaches for the sides — the status icons, the widget row, a bar's icon and
+// value — is narrowed to the circle's chord at its edge farthest from the
+// centre, so nothing lands in the clipped-off corners.
+
+#if defined(PBL_ROUND)
+#define ROUND_INSET_V   24   // off the top and bottom of the screen
+#define ROUND_INSET_H   16   // off the sides, for the digits
+#define ROUND_MARGIN     6   // kept clear of the bezel by a chord-fitted band
+
+static int isqrt(int n) {
+  int x = 0;
+  while ((x + 1) * (x + 1) <= n) x++;
+  return x;
+}
+
+// Narrows a band, given in screen coordinates, to fit inside the display circle.
+static GRect round_fit_band(GRect band) {
+  GRect screen = layer_get_bounds(window_get_root_layer(s_window));
+  int cx = screen.size.w / 2, cy = screen.size.h / 2;
+  int r = screen.size.w / 2 - ROUND_MARGIN;
+  int top = band.origin.y, bottom = band.origin.y + band.size.h;
+  int dy = abs(top - cy) > abs(bottom - cy) ? abs(top - cy) : abs(bottom - cy);
+  int half = dy < r ? isqrt(r * r - dy * dy) : 0;
+  int left = band.origin.x > cx - half ? band.origin.x : cx - half;
+  int right = band.origin.x + band.size.w < cx + half ? band.origin.x + band.size.w : cx + half;
+  if (right < left) right = left;
+  return GRect(left, band.origin.y, right - left, band.size.h);
+}
+#endif
+
+// A band within `layer`, narrowed to the display circle on a round screen.
+static GRect fit_band(Layer *layer, GRect band) {
+#if defined(PBL_ROUND)
+  GRect screen = layer_convert_rect_to_screen(layer, band);
+  GRect fitted = round_fit_band(screen);
+  band.origin.x += fitted.origin.x - screen.origin.x;
+  band.size.w = fitted.size.w;
+#endif
+  return band;
 }
 
 // Returns the metric value for a health metric, or 0 if not accessible.
@@ -415,7 +474,7 @@ static void compute_progress(int type, GColor accent, int *pct, char *buf, size_
       *pct = s_batt_pct;
       snprintf(buf, len, "%d%%", s_batt_pct);
       *icon = s_img_battery;
-      if (s_batt_pct < 20) *fill = GColorRed;
+      if (s_batt_pct < 20) *fill = ink(GColorRed);
       break;
     case PROGRESS_CALORIES: {
       int goal = goal_for(HealthMetricActiveKCalories,
@@ -511,6 +570,12 @@ static void compute_progress(int type, GColor accent, int *pct, char *buf, size_
 // Draws the big hours (white, bold, top) and minutes (gray, light, bottom).
 // Maps the configured clock scheme to its hour and minute fill colors.
 static void clock_scheme_colors(int scheme, GColor *hours, GColor *minutes) {
+#if defined(PBL_BW)
+  // Every scheme is a pairing of shades, and a black-and-white screen has one:
+  // the bold and light weights alone tell hours from minutes.
+  *hours = *minutes = col_fg();
+  return;
+#endif
   GColor accent = themed_accent(config_get()->accent_color);
   switch (scheme) {
     case CLOCK_SCHEME_WHITE_WHITE:  *hours = col_fg();     *minutes = col_fg();     break;
@@ -545,6 +610,15 @@ static int bar_side_reserve(int info_mode) {
   }
 }
 
+// FCTX draws in screen coordinates and knows nothing of the layer it is called
+// from, so a clock layer that does not start at the screen's corner (as on a
+// round screen, where it is inset) has to add its own position to every offset.
+static GPoint s_clock_origin;
+
+static void clock_set_offset(FContext *fctx, GPoint p) {
+  fctx_set_offset(fctx, FPointI(s_clock_origin.x + p.x, s_clock_origin.y + p.y));
+}
+
 // Sets the em height, shrinking it until the string fits within max_w. The
 // stacked layout can size digits off the layer height alone; side-by-side they
 // also have to clear their column. Returns the em height actually applied.
@@ -567,7 +641,7 @@ static void clock_draw_stacked(FContext *fctx, int W, int H, GColor hour_color,
   int hour_y = H * 21 / 100;
   fctx_begin_fill(fctx);
   fctx_set_fill_color(fctx, hour_color);
-  fctx_set_offset(fctx, FPointI(W / 2, hour_y));
+  clock_set_offset(fctx, GPoint(W / 2, hour_y));
   fctx_set_text_em_height(fctx, s_ffont_bold, H * 54 / 100);
   int hour_w = FIXED_TO_INT(fctx_string_width(fctx, s_hours, s_ffont_bold));
   fctx_draw_string(fctx, s_hours, s_ffont_bold, GTextAlignmentCenter, FTextAnchorCapMiddle);
@@ -575,7 +649,7 @@ static void clock_draw_stacked(FContext *fctx, int W, int H, GColor hour_color,
 
   fctx_begin_fill(fctx);
   fctx_set_fill_color(fctx, minute_color);
-  fctx_set_offset(fctx, FPointI(W / 2, H * 77 / 100));
+  clock_set_offset(fctx, GPoint(W / 2, H * 77 / 100));
   fctx_set_text_em_height(fctx, s_ffont_light, H * 49 / 100);
   fctx_draw_string(fctx, s_minutes, s_ffont_light, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(fctx);
@@ -599,14 +673,14 @@ static void clock_draw_side_by_side(FContext *fctx, int W, int H, GColor hour_co
   // fitting "11" and "00" individually would resize the digits as time passed.
   fctx_begin_fill(fctx);
   fctx_set_fill_color(fctx, hour_color);
-  fctx_set_offset(fctx, FPointI(hour_cx, cy));
+  clock_set_offset(fctx, GPoint(hour_cx, cy));
   int hour_em = fit_em(fctx, s_ffont_bold, "00", max_w, em);
   fctx_draw_string(fctx, s_hours, s_ffont_bold, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(fctx);
 
   fctx_begin_fill(fctx);
   fctx_set_fill_color(fctx, minute_color);
-  fctx_set_offset(fctx, FPointI(min_cx, cy));
+  clock_set_offset(fctx, GPoint(min_cx, cy));
   fit_em(fctx, s_ffont_light, "00", max_w, em);
   fctx_draw_string(fctx, s_minutes, s_ffont_light, GTextAlignmentCenter, FTextAnchorCapMiddle);
   fctx_end_fill(fctx);
@@ -647,6 +721,7 @@ static void clock_update_proc(Layer *layer, GContext *ctx) {
   GRect ampm = GRectZero;
   GTextAlignment ampm_align = GTextAlignmentLeft;
 
+  s_clock_origin = layer_convert_point_to_screen(layer, GPointZero);
   FContext fctx;
   fctx_init_context(&fctx, ctx);
   switch (config_get()->layout_mode) {
@@ -804,7 +879,7 @@ static void draw_metric_bar(GContext *ctx, GRect r, int type, GColor accent, boo
   int pct;
   BarMarks marks;
   const char *badge;
-  char val[8];
+  char val[16];
   GDrawCommandImage *icon = NULL;
   GColor fill;
   compute_progress(type, accent, &pct, val, sizeof(val), &icon, &fill, &marks, &badge);
@@ -837,15 +912,15 @@ static void progress_update_proc(Layer *layer, GContext *ctx) {
       int strip_h = 28;
       int top_cy = b.size.h * 25 / 100;
       int bot_cy = b.size.h * 75 / 100;
-      draw_metric_bar(ctx, GRect(0, top_cy - strip_h / 2, b.size.w, strip_h),
+      draw_metric_bar(ctx, fit_band(layer, GRect(0, top_cy - strip_h / 2, b.size.w, strip_h)),
                       cfg->progress_type, accent, false);
-      draw_metric_bar(ctx, GRect(0, bot_cy - strip_h / 2, b.size.w, strip_h),
+      draw_metric_bar(ctx, fit_band(layer, GRect(0, bot_cy - strip_h / 2, b.size.w, strip_h)),
                       cfg->progress_type_2, accent_2, false);
       break;
     }
 
     default:
-      draw_metric_bar(ctx, b, cfg->progress_type, accent, false);
+      draw_metric_bar(ctx, fit_band(layer, b), cfg->progress_type, accent, false);
       break;
   }
 }
@@ -869,6 +944,13 @@ static GDrawCommandImage *weather_icon(int cond, GColor *color) {
     case WEATHER_HEAVY_SNOW: *color = snow;  return s_img_hsnow;
     default:                 *color = blue;  return s_img_cloud;
   }
+}
+
+// weather_icon() with the colour as it will actually show.
+static GDrawCommandImage *weather_icon_inked(int cond, GColor *color) {
+  GDrawCommandImage *img = weather_icon(cond, color);
+  *color = ink(*color);
+  return img;
 }
 
 // Battery glyph geometry (a small body rect plus a positive-terminal nub).
@@ -897,6 +979,32 @@ static bool next_sun_event(char *buf, size_t len, bool *is_rise) {
   return true;
 }
 
+// The next alarm: writes its clock time into buf. Returns false when no
+// enabled alarm rings within the next 24 hours -- a bare "7:00" for an alarm
+// three days out would read as tomorrow morning, so the slot stays empty
+// instead (which itself says "no alarm tomorrow"). Re-read on every redraw, so
+// an alarm set or switched off shows up by the next minute.
+#define ALARM_HORIZON_S (24 * 60 * 60)
+static bool next_alarm(char *buf, size_t len) {
+  time_t at;
+  if (!alarm_service_peek_next(&at)) return false;
+  time_t now = time(NULL);
+  if (at < now || at - now > ALARM_HORIZON_S) return false;
+  struct tm *tm = localtime(&at);
+  int hour = tm->tm_hour;
+  if (!config_get()->clock_24h) {
+    // Unlike a sunrise, an alarm can be either side of noon, so a 12-hour
+    // clock marks which.
+    const char *ap = hour < 12 ? "a" : "p";
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+    snprintf(buf, len, "%d:%02d%s", hour, tm->tm_min, ap);
+  } else {
+    snprintf(buf, len, "%d:%02d", hour, tm->tm_min);
+  }
+  return true;
+}
+
 // Returns the pixel width a widget needs, or 0 for WIDGET_NONE / no content.
 // Mirrors the layout each draw_widget_* path produces so slots can be placed.
 static int widget_width(int type) {
@@ -912,7 +1020,7 @@ static int widget_width(int type) {
       // Nothing known yet (or the stored reading expired): claim no space rather
       // than show a placeholder condition the watch cannot vouch for.
       if (cfg->weather_temp == WEATHER_TEMP_NONE) return 0;
-      char ws[8];
+      char ws[16];
       snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
       GColor wc;
       GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
@@ -923,7 +1031,7 @@ static int widget_width(int type) {
       return sz.w + 1 + vw.w;
     }
     case WIDGET_HEART: {
-      char hs[8];
+      char hs[16];
       if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
       else snprintf(hs, sizeof(hs), "--");
       if (!s_img_heart) return 0;
@@ -933,7 +1041,7 @@ static int widget_width(int type) {
       return sz.w + 1 + vw.w;
     }
     case WIDGET_SUN: {
-      char ss[8];
+      char ss[16];
       bool is_rise;
       // Mirrors the weather slot: nothing known yet means no space claimed,
       // rather than a placeholder time the watch cannot vouch for.
@@ -945,10 +1053,18 @@ static int widget_width(int type) {
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
       return sz.w + 1 + vw.w;
     }
+    case WIDGET_ALARM: {
+      char as[16];
+      if (!next_alarm(as, sizeof(as)) || !s_img_alarm) return 0;
+      GSize sz = gdraw_command_image_get_bounds_size(s_img_alarm);
+      GSize vw = graphics_text_layout_get_content_size(as, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      return sz.w + 1 + vw.w;
+    }
     case WIDGET_BATTERY: {
       int w = BATT_BODY_W + BATT_NUB_W;
       if (cfg->battery_pct) {
-        char bs[8];
+        char bs[16];
         snprintf(bs, sizeof(bs), "%d%%", s_batt_pct);
         GSize vw = graphics_text_layout_get_content_size(bs, s_font20, GRect(0, 0, 60, 22),
                                                          GTextOverflowModeFill, GTextAlignmentLeft);
@@ -983,10 +1099,10 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
     }
     case WIDGET_WEATHER: {
       if (cfg->weather_temp == WEATHER_TEMP_NONE) break;  // mirrors widget_width
-      char ws[8];
+      char ws[16];
       snprintf(ws, sizeof(ws), "%d°", cfg->weather_temp);
       GColor wc;
-      GDrawCommandImage *wi = weather_icon(cfg->weather_condition, &wc);
+      GDrawCommandImage *wi = weather_icon_inked(cfg->weather_condition, &wc);
       if (cfg->weather_accent) wc = themed_accent(cfg->accent_color);
       if (!wi) break;
       GSize sz = gdraw_command_image_get_bounds_size(wi);
@@ -1000,12 +1116,12 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       break;
     }
     case WIDGET_HEART: {
-      char hs[8];
+      char hs[16];
       if (s_hr > 0) snprintf(hs, sizeof(hs), "%d", s_hr);
       else snprintf(hs, sizeof(hs), "--");
       if (!s_img_heart) break;
       GSize sz = gdraw_command_image_get_bounds_size(s_img_heart);
-      draw_pdc(ctx, s_img_heart, GPoint(x, cy - sz.h / 2), GColorRed);
+      draw_pdc(ctx, s_img_heart, GPoint(x, cy - sz.h / 2), ink(GColorRed));
       x += sz.w + 1;
       GSize vw = graphics_text_layout_get_content_size(hs, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
@@ -1015,7 +1131,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       break;
     }
     case WIDGET_SUN: {
-      char ss[8];
+      char ss[16];
       bool is_rise;
       // Mirrors widget_width: unknown daylight draws nothing at all.
       if (!next_sun_event(ss, sizeof(ss), &is_rise)) break;
@@ -1026,7 +1142,7 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
       if (!si) break;
       GSize sz = gdraw_command_image_get_bounds_size(si);
       draw_pdc(ctx, si, GPoint(x, cy - sz.h / 2),
-               theme_is_light() ? GColorWindsorTan : GColorChromeYellow);
+               ink(theme_is_light() ? GColorWindsorTan : GColorChromeYellow));
       x += sz.w + 1;
       GSize vw = graphics_text_layout_get_content_size(ss, s_font20, GRect(0, 0, 60, 22),
                                                        GTextOverflowModeFill, GTextAlignmentLeft);
@@ -1035,10 +1151,24 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
                          GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       break;
     }
+    case WIDGET_ALARM: {
+      char as[16];
+      // Mirrors widget_width: no alarm within a day draws nothing at all.
+      if (!next_alarm(as, sizeof(as)) || !s_img_alarm) break;
+      GSize sz = gdraw_command_image_get_bounds_size(s_img_alarm);
+      draw_pdc(ctx, s_img_alarm, GPoint(x, cy - sz.h / 2), themed_accent(cfg->accent_color));
+      x += sz.w + 1;
+      GSize vw = graphics_text_layout_get_content_size(as, s_font20, GRect(0, 0, 60, 22),
+                                                       GTextOverflowModeFill, GTextAlignmentLeft);
+      graphics_context_set_text_color(ctx, col_fg2());
+      graphics_draw_text(ctx, as, s_font20, GRect(x, ty, vw.w, 22),
+                         GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+      break;
+    }
     case WIDGET_BATTERY: {
       // Battery body outline + nub, filled proportionally to the charge level.
       int top = cy - BATT_H / 2;
-      GColor fill = (s_batt_pct < 20) ? GColorRed : themed_accent(cfg->accent_color);
+      GColor fill = (s_batt_pct < 20) ? ink(GColorRed) : themed_accent(cfg->accent_color);
       graphics_context_set_stroke_color(ctx, col_fg2());
       graphics_draw_round_rect(ctx, GRect(x, top, BATT_BODY_W, BATT_H), 2);
       graphics_context_set_fill_color(ctx, col_fg2());
@@ -1064,12 +1194,12 @@ static void draw_widget_at(GContext *ctx, int type, int x, int cy, int ty) {
 
       // Optional percentage label beside the glyph.
       if (cfg->battery_pct) {
-        char bs[8];
+        char bs[16];
         snprintf(bs, sizeof(bs), "%d%%", s_batt_pct);
         int tx = x + BATT_BODY_W + BATT_NUB_W + 3;
         GSize vw = graphics_text_layout_get_content_size(bs, s_font20, GRect(0, 0, 60, 22),
                                                          GTextOverflowModeFill, GTextAlignmentLeft);
-        graphics_context_set_text_color(ctx, (s_batt_pct < 20) ? GColorRed : col_fg2());
+        graphics_context_set_text_color(ctx, (s_batt_pct < 20) ? ink(GColorRed) : col_fg2());
         graphics_draw_text(ctx, bs, s_font20, GRect(tx, ty, vw.w, 22),
                            GTextOverflowModeFill, GTextAlignmentLeft, NULL);
       }
@@ -1313,23 +1443,35 @@ static void health_handler(HealthEventType event, void *context) {
 // above the peek. The update procs read layer_get_bounds(), so digits/widgets
 // re-fit automatically.
 static void apply_layout(GRect ub) {
+#if defined(PBL_ROUND)
+  ub = grect_inset(ub, GEdgeInsets(ROUND_INSET_V, ROUND_INSET_H));
+#endif
+  int X = ub.origin.x, Y = ub.origin.y;
   int W = ub.size.w, H = ub.size.h;
   int bottom_h = H * 17 / 100;
   int clock_h = H - bottom_h;
 
-  if (s_clock_layer) layer_set_frame(s_clock_layer, GRect(0, 0, W, clock_h));
+  if (s_clock_layer) layer_set_frame(s_clock_layer, GRect(X, Y, W, clock_h));
 
   // The progressbar overlays the clock rather than sitting between two halves,
   // so the side-by-side layout can simply claim the whole clock area: its value
   // label would clip against a narrow middle strip (layers clip to bounds).
   if (s_progress_layer) {
     bool overlay = (config_get()->layout_mode != LAYOUT_VERTICAL);
-    layer_set_frame(s_progress_layer, overlay ? GRect(0, 0, W, clock_h)
-                                              : GRect(0, clock_h * 50 / 100 - 14, W, 28));
+    layer_set_frame(s_progress_layer, overlay ? GRect(X, Y, W, clock_h)
+                                              : GRect(X, Y + clock_h * 50 / 100 - 14, W, 28));
   }
 
-  if (s_bottom_layer) layer_set_frame(s_bottom_layer, GRect(0, H - bottom_h, W, bottom_h));
-  if (s_status_layer) layer_set_frame(s_status_layer, GRect(0, 0, W, 28));
+  // The widget row and status icons sit at the far top and bottom, which a round
+  // screen narrows most: give them the full width the circle allows there.
+  GRect bottom = GRect(X, Y + H - bottom_h, W, bottom_h);
+  GRect status = GRect(X, Y, W, 28);
+#if defined(PBL_ROUND)
+  bottom = round_fit_band(GRect(0, bottom.origin.y, ub.origin.x * 2 + W, bottom_h));
+  status = round_fit_band(GRect(0, status.origin.y, ub.origin.x * 2 + W, 28));
+#endif
+  if (s_bottom_layer) layer_set_frame(s_bottom_layer, bottom);
+  if (s_status_layer) layer_set_frame(s_status_layer, status);
 }
 
 // Timeline Quick View: hide the status icons during the slide to reduce clutter.
@@ -1379,6 +1521,7 @@ static void window_load(Window *window) {
   s_img_gauge          = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_GAUGE);
   s_img_sunrise        = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_SUNRISE);
   s_img_sunset         = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_SUNSET);
+  s_img_alarm          = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_ALARM);
   s_img_duration       = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_DURATION);
   s_img_claude_session = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_CLAUDE_SESSION);
   s_img_claude_week    = gdraw_command_image_create_with_resource(RESOURCE_ID_IMG_CLAUDE_WEEK);
@@ -1462,6 +1605,7 @@ static void window_unload(Window *window) {
   gdraw_command_image_destroy(s_img_bt_off);
   gdraw_command_image_destroy(s_img_gauge);
   gdraw_command_image_destroy(s_img_sunrise);
+  gdraw_command_image_destroy(s_img_alarm);
   gdraw_command_image_destroy(s_img_sunset);
   gdraw_command_image_destroy(s_img_duration);
   gdraw_command_image_destroy(s_img_claude_session);

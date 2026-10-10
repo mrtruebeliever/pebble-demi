@@ -1,8 +1,9 @@
 # Demi
 
-A configurable watchface for the **Pebble Time 2** (platform `emery`). Demi shows large
+A configurable watchface for the **Pebble Time 2** (platform `emery`), also built for the
+**Pebble Round 2** (`gabbro`) and **Pebble 2 Duo** (`flint`). Demi shows large
 anti-aliased vector digits, a configurable progress bar in one of three layouts, and three
-configurable widget slots (date / weather / battery / heart rate / sunrise–sunset) along the
+configurable widget slots (date / weather / battery / heart rate / sunrise–sunset / next alarm) along the
 bottom.
 
 ![Demi — green, steps, 24h](demi.png)
@@ -67,7 +68,7 @@ Open the watchface settings in the Pebble app to configure:
 | **Beside the bar** | Nothing / Icon only / Icon and value — showing less lengthens the track — default icon and value |
 | **Second bar color** | on / off, plus a 12-swatch picker — gives the two-bar layout's lower bar its own color. Off (default) means it follows the main accent, so changing that doesn't strand it |
 | **Swap icon and value** | on / off — trades their places and reverses the bar's fill direction with them (vertical: value left, icon right, fills right-to-left; horizontal: value above, icon below, fills bottom-up) — default off |
-| **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate / Sunrise–sunset — default date / — / weather |
+| **Bottom widgets** | Three slots (left / middle / right), each: None / Date / Weather / Battery / Heart rate / Sunrise–sunset / Next alarm (within 24 h) — default date / — / weather |
 | **Battery percentage** | on / off — show the % beside the battery glyph, or glyph only — default on |
 | **Goals** | Step, calorie and distance targets — where each bar reaches 100%. `0` means "use my own daily average" |
 | **Usual pace** | on / off — a mark on the bar showing where you normally stand at this time of day — default off |

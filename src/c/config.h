@@ -54,7 +54,8 @@
 #define WIDGET_BATTERY  3
 #define WIDGET_HEART    4
 #define WIDGET_SUN      5  // next sunrise or sunset, whichever comes first
-#define WIDGET_COUNT    6
+#define WIDGET_ALARM    6  // the next alarm, when it rings within a day
+#define WIDGET_COUNT    7
 
 // How much detail sits beside the progressbar.
 #define PROGRESS_INFO_NONE  0
