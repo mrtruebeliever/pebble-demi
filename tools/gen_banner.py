@@ -3,9 +3,11 @@
 each wearing a different configuration of the face.
 
 Input (emulator screenshots, see store/banner-src/):
-  time2.png    Pebble Time 2 (emery, 200x228)   light theme, two bars
-  round2.png   Pebble Round 2 (gabbro, 260x260) dark, orange, daylight bar
-  duo.png      Pebble 2 Duo (flint, 144x168)    black and white, horizontal
+  time2.png    Pebble Time 2 (emery, 200x228)   light, blue, horizontal, battery bar
+  round2.png   Pebble Round 2 (gabbro, 260x260) dark, orange, vertical, daylight bar
+  duo.png      Pebble 2 Duo (flint, 144x168)    black and white, two bars
+
+One layout per watch, so the banner shows all three.
 
 Output:
   store/banner-720x320.png
