@@ -3,7 +3,7 @@
 each wearing a different configuration of the face.
 
 Input (emulator screenshots, see store/banner-src/):
-  time2.png    Pebble Time 2 (emery, 200x228)   light, blue, horizontal, battery bar
+  time2.png    Pebble Time 2 (emery, 200x228)   light, blue, horizontal, bar only
   round2.png   Pebble Round 2 (gabbro, 260x260) dark, orange, vertical, daylight bar
   duo.png      Pebble 2 Duo (flint, 144x168)    black and white, two bars
 
@@ -90,7 +90,7 @@ def round_watch(img, cx, cy, scr, body, bezel, ring):
     r_scr = sw // 2
     r_body = r_scr + ring
     d = ImageDraw.Draw(img)
-    for by in (-38, 0, 38):
+    for by in (-33, 0, 33):
         d.rounded_rectangle((cx + r_body - 6 * K, cy + by * K - 13 * K, cx + r_body + 6 * K, cy + by * K + 13 * K),
                             3 * K, fill=body[1])
     d.rounded_rectangle((cx - r_body - 6 * K, cy - 13 * K, cx - r_body + 6 * K, cy + 13 * K), 3 * K, fill=body[1])
@@ -124,26 +124,26 @@ def main():
     d.text((31 * K, 192 * K), "Big digits, your bars,", font=ft, fill=DIM)
     d.text((31 * K, 212 * K), "your widgets.", font=ft, fill=DIM)
 
-    base = 262 * K          # labels sit on this line
+    base = 250 * K          # labels sit on this line
 
     # Pebble 2 Duo: small, black plastic, buttons on both sides.
-    duo = screen("duo.png", 0.82)
+    duo = screen("duo.png", 0.72)
     b = rect_watch(img, 266 * K, 148 * K, duo, body=((50, 52, 56), (66, 68, 72)), bezel=(14, 14, 16),
-                   pad_x=12 * K, pad_top=26 * K, pad_bottom=26 * K, radius=18 * K,
-                   buttons={"left": [-26 * K], "right": [-40 * K, 0, 40 * K]})
+                   pad_x=11 * K, pad_top=23 * K, pad_bottom=23 * K, radius=16 * K,
+                   buttons={"left": [-23 * K], "right": [-35 * K, 0, 35 * K]})
     label(img, 266 * K, base, "Pebble 2 Duo")
 
     # Pebble Time 2: the largest screen, a steel frame.
-    t2 = screen("time2.png", 0.76)
+    t2 = screen("time2.png", 0.67)
     rect_watch(img, 438 * K, 146 * K, t2, body=((150, 154, 160), (120, 124, 130)), bezel=(12, 12, 14),
-               pad_x=13 * K, pad_top=15 * K, pad_bottom=15 * K, radius=22 * K,
-               buttons={"left": [-20 * K], "right": [-42 * K, 0, 42 * K]})
+               pad_x=12 * K, pad_top=13 * K, pad_bottom=13 * K, radius=19 * K,
+               buttons={"left": [-18 * K], "right": [-37 * K, 0, 37 * K]})
     label(img, 438 * K, base, "Pebble Time 2")
 
     # Pebble Round 2: round, a thin polished ring.
-    r2 = screen("round2.png", 0.6)
+    r2 = screen("round2.png", 0.53)
     round_watch(img, 612 * K, 148 * K, r2, body=((176, 160, 140), (140, 126, 108)), bezel=(10, 10, 12),
-                ring=10 * K)
+                ring=9 * K)
     label(img, 612 * K, base, "Pebble Round 2")
 
     img.resize((720, 320), Image.LANCZOS).save(OUT)
